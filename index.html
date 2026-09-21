@@ -20,6 +20,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="متجر العشري">
 <meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -411,6 +412,44 @@
   .login-hero{padding-top:10vh}.login-hero .mark{width:88px;height:88px;line-height:88px;border-radius:26px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);box-shadow:0 14px 30px rgba(0,0,0,.16)}
   .login-card{border-radius:26px;border-color:rgba(255,255,255,.85);box-shadow:0 26px 70px rgba(16,42,67,.18)}.login-title{color:var(--primary-dark);font-size:20px}
   @media (min-width:760px) and (hover:hover){nav.tabbar{background:linear-gradient(180deg,#102a43,#0b344c);border-left-color:rgba(255,255,255,.10)}nav.tabbar button{color:#b7cbd4}nav.tabbar button.active{background:linear-gradient(90deg,rgba(184,137,53,.22),rgba(255,255,255,.08));color:#fff}nav.tabbar button.active::before{background:#e0ad4f}}
+  /* ===== Royal Signature UI — طبقة تصميم كاملة للواجهة فقط ===== */
+  :root{
+    --bg:#f4f6f8;--surface:#ffffff;--ink:#142536;--ink-soft:#607181;--ink-faint:#98a6b2;
+    --primary:#117a73;--primary-dark:#0c2940;--primary-soft:#e5f3f0;--gold:#c49a52;--gold-soft:#fbf5e8;
+    --line:#e0e7ec;--line-soft:#eef2f5;--radius-sm:11px;--radius:18px;--radius-lg:26px;
+    --shadow-sm:0 5px 18px rgba(12,41,64,.06);--shadow-md:0 15px 36px rgba(12,41,64,.11);--shadow-lg:0 30px 80px rgba(12,41,64,.22)
+  }
+  html{background:var(--bg)}
+  body{background:radial-gradient(circle at 8% -4%,rgba(196,154,82,.14),transparent 26%),linear-gradient(135deg,#f1f4f6 0%,#fbfcfd 52%,#edf3f3 100%);color:var(--ink);font-family:'Tajawal',Tahoma,sans-serif}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.42),transparent 45%);z-index:-1}
+  header.topbar{min-height:76px;padding:14px 22px;background:linear-gradient(118deg,#0b2238 0%,#123b55 52%,#117a73 100%);border-bottom:1px solid rgba(255,255,255,.14);box-shadow:0 14px 36px rgba(8,31,48,.22)}
+  header.topbar::before{content:'STORE MANAGEMENT';position:absolute;left:22px;top:11px;color:rgba(255,255,255,.30);font:700 9px/1 Arial,sans-serif;letter-spacing:2px}
+  header.topbar::after{right:22px;bottom:0;width:78px;height:4px;background:linear-gradient(90deg,#e8c776,#ad7b2f);box-shadow:0 0 18px rgba(232,199,118,.35)}
+  header.topbar .store-name{font-size:20px;font-weight:900;letter-spacing:.1px;text-shadow:0 2px 12px rgba(0,0,0,.18)}
+  header.topbar .date{color:rgba(255,255,255,.70);font-size:11px;margin-top:3px}
+  .topbar-logo{width:48px;height:48px;border-radius:16px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.13);box-shadow:0 9px 24px rgba(0,0,0,.18)}
+  .gear{width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.18);color:#fff;transition:.2s}
+  .gear:hover{background:rgba(255,255,255,.23);transform:rotate(18deg)}
+  main{max-width:1480px;margin:auto;padding:24px 18px 108px}
+  .view{animation:royalIn .22s ease both}@keyframes royalIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .card,.stat-box{border:1px solid rgba(211,222,230,.9);border-radius:var(--radius);background:rgba(255,255,255,.92);box-shadow:var(--shadow-sm);backdrop-filter:blur(8px)}
+  .card{padding:17px}.h2{font-size:17px;font-weight:900;color:var(--primary-dark);letter-spacing:.1px}
+  .search-wrap input,input,select,textarea{background:rgba(255,255,255,.96);border:1px solid #d7e0e6;border-radius:13px;min-height:45px;transition:border-color .18s,box-shadow .18s,background .18s}
+  input:focus,select:focus,textarea:focus{background:#fff;border-color:#19877e;box-shadow:0 0 0 4px rgba(17,122,115,.13);outline:none}
+  .btn{border-radius:13px;min-height:43px;font-weight:800;letter-spacing:.05px;transition:transform .18s,box-shadow .18s,filter .18s}
+  .btn:hover{transform:translateY(-1px)}.btn:active{transform:translateY(0)}
+  .btn-primary{background:linear-gradient(135deg,#117a73,#0c4960);box-shadow:0 10px 22px rgba(17,122,115,.22)}
+  .btn-outline{background:#fff;border-color:#3b968d;color:#0e665f}.btn-ghost{background:#f5f8fa;border-color:#dbe4e9;color:#385163}
+  .btn-danger{box-shadow:0 8px 18px rgba(174,58,52,.12)}
+  .chips{gap:9px}.chip{border-radius:999px;padding:9px 16px;background:#fff;border:1px solid #dbe4e9;color:#5b6c79;box-shadow:0 3px 10px rgba(12,41,64,.04);font-weight:700}.chip.active{background:linear-gradient(135deg,#117a73,#0c4960);border-color:#117a73;color:#fff;box-shadow:0 8px 18px rgba(17,122,115,.2)}
+  .prod-item{border:1px solid #e0e8ed;border-radius:16px;background:linear-gradient(145deg,#fff,#f9fbfc);padding:15px;box-shadow:0 5px 14px rgba(12,41,64,.055);transition:transform .18s,box-shadow .18s,border-color .18s}.prod-item:hover{transform:translateY(-3px);border-color:#b7d8d4;box-shadow:0 12px 24px rgba(12,41,64,.11)}.prod-item .name{font-size:15px;font-weight:800;color:#1b3447}.prod-item .price{color:#117a73;font-weight:900}
+  .stat-box{background:linear-gradient(145deg,#fff,#f6faf9);padding:16px}.stat-box .num{color:var(--primary-dark);font-weight:900}
+  .modal-back{background:rgba(5,21,34,.62);backdrop-filter:blur(7px)}.modal{border:1px solid rgba(255,255,255,.72);border-radius:26px;box-shadow:var(--shadow-lg);background:rgba(255,255,255,.97)}.modal-title{font-size:20px;font-weight:900;color:var(--primary-dark)}
+  .login-screen{background:radial-gradient(circle at 80% 10%,rgba(196,154,82,.18),transparent 23%),linear-gradient(145deg,#eaf1f3,#fbfcfd)}.login-screen::before{height:47vh;max-height:420px;background:radial-gradient(circle at 18% 15%,rgba(255,255,255,.16),transparent 24%),linear-gradient(135deg,#0b2238,#123b55 55%,#117a73);border-radius:0 0 48% 48% / 0 0 72px 72px;box-shadow:0 20px 45px rgba(12,41,64,.14)}.login-hero{padding-top:9vh}.login-hero .mark{width:96px;height:96px;line-height:96px;border-radius:30px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.32);box-shadow:0 18px 36px rgba(0,0,0,.18)}.login-hero .brand{font-size:24px;font-weight:900;letter-spacing:.2px}.login-hero .tag{color:rgba(255,255,255,.76)}.login-card{border-radius:28px;border:1px solid rgba(255,255,255,.86);box-shadow:0 28px 75px rgba(12,41,64,.19);padding:25px}.login-title{color:var(--primary-dark);font-size:22px;font-weight:900}
+  nav.tabbar{border-top:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,#0b2238,#0a334c);box-shadow:0 -12px 30px rgba(8,31,48,.16)}nav.tabbar button{color:#b9cbd3;font-weight:700}nav.tabbar button.active{background:linear-gradient(90deg,rgba(196,154,82,.24),rgba(255,255,255,.08));color:#fff}nav.tabbar button.active::before{background:#e8c776;box-shadow:0 0 12px rgba(232,199,118,.55)}
+  .checkout-bar{background:rgba(255,255,255,.94);border:1px solid #dce6eb;box-shadow:0 -12px 30px rgba(12,41,64,.12);backdrop-filter:blur(12px)}.checkout-bar .amt{color:#117a73;font-weight:900}
+  @media (min-width:760px) and (hover:hover){main{padding-left:30px;padding-right:30px}.card{padding:20px}.login-card{min-width:410px}.prod-item{min-height:78px}nav.tabbar{border-left:1px solid rgba(255,255,255,.12)}}
+  @media (max-width:759px){header.topbar{padding:13px 14px}header.topbar::before{display:none}main{padding:15px 11px 102px}.card{padding:14px}.login-card{margin:0 13px;padding:21px}.login-hero{padding-top:7vh}.login-screen::before{height:43vh}.topbar-logo{width:44px;height:44px}}
 </style>
 </head>
 <body>
