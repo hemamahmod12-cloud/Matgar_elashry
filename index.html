@@ -2906,6 +2906,12 @@ function updateBranding(){
   const logoDataUrl = state.settings.logoDataUrl || '';
   const nameBtn = document.getElementById('storeNameBtn');
   if(nameBtn) nameBtn.textContent = name;
+  const loginBrand = document.getElementById('loginBrand');
+  if(loginBrand) loginBrand.textContent = name;
+  const loginMark = document.getElementById('loginMark');
+  if(loginMark){
+    loginMark.innerHTML = logoDataUrl ? `<img src="${logoDataUrl}" alt="شعار ${esc(name)}">` : '🏪';
+  }
   const logo = document.getElementById('topbarLogo');
   if(logo){
     if(logoDataUrl){
