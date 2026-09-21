@@ -12,10 +12,10 @@
 <meta property="og:type" content="website">
 <meta name="application-version" content="v2.0-responsive-logo-fix"><meta name="theme-color" content="#0A4F43">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="favicon.ico">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link id="faviconFallback" rel="icon" href="favicon.ico">
+<link id="favicon192" rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link id="favicon512" rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link id="appleIcon" rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="متجر العشري">
@@ -456,7 +456,7 @@
 <body>
 
 <div id="splash">
-  <div class="logo">🏪</div>
+  <div class="logo" id="splashLogo">🏪</div>
   <div class="spin"></div>
 </div>
 
@@ -2575,6 +2575,7 @@ function openSettings(){
       delete state.settings.logoDataUrl;
       await save('settings');
       logAudit('حذف شعار المتجر', 'settings', {});
+      updateBranding();
       openSettings();
     });
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
@@ -2902,21 +2903,29 @@ function importBackup(e){
 /* ================= INIT ================= */
 function updateBranding(){
   const name = state.settings.storeName || 'متجري';
+  const logoDataUrl = state.settings.logoDataUrl || '';
   const nameBtn = document.getElementById('storeNameBtn');
   if(nameBtn) nameBtn.textContent = name;
   const logo = document.getElementById('topbarLogo');
   if(logo){
-    if(state.settings.logoDataUrl){
+    if(logoDataUrl){
       logo.className = 'topbar-logo';
-      logo.innerHTML = `<img src="${state.settings.logoDataUrl}" alt="شعار ${esc(name)}" style="width:100%;height:100%;object-fit:contain;border-radius:9px;">`;
+      logo.innerHTML = `<img src="${logoDataUrl}" alt="شعار ${esc(name)}" style="width:100%;height:100%;object-fit:contain;border-radius:9px;">`;
     }else{
       logo.className = 'topbar-logo topbar-logo-fallback';
       logo.textContent = '🏪';
     }
   }
-  if(state.settings.logoDataUrl){
-    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => { link.href = state.settings.logoDataUrl; });
+  const splashLogo = document.getElementById('splashLogo');
+  if(splashLogo){
+    splashLogo.innerHTML = logoDataUrl
+      ? `<img src="${logoDataUrl}" alt="شعار ${esc(name)}" style="width:100%;height:100%;object-fit:contain;border-radius:18px;background:#fff;padding:7px;">`
+      : '🏪';
   }
+  document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => {
+    if(!link.dataset.fallback) link.dataset.fallback = link.getAttribute('href') || '';
+    link.href = logoDataUrl || link.dataset.fallback;
+  });
   document.title = name;
 }
 function renderAll(){
