@@ -2264,7 +2264,10 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
       return;
     }
   }
-  const email = usernameToEmail(username);
+  // اسم المستخدم واجهة فقط؛ إن كان لدينا بريد Auth محفوظ للمستخدم فنستخدمه
+  // بدل اشتقاق بريد جديد من الاسم. هذا يسمح بتغيير الاسم دون updateEmail.
+  const knownUser = hasUsers ? findStoreUser(username) : null;
+  const email = (knownUser && knownUser.authEmail) || usernameToEmail(username);
 
   // إنشاء أول حساب مدير (أول تشغيل للنظام)
   if(!hasUsers){
@@ -2281,7 +2284,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
         if(createErr.code !== 'auth/email-already-in-use' || !auth) throw createErr;
         cred = await auth.signInWithEmailAndPassword(email, password);
       }
-      const admin = { id: cred ? cred.user.uid : uid(), name: fullname, username, role: 'admin' };
+      const admin = { id: cred ? cred.user.uid : uid(), name: fullname, username, role: 'admin', authEmail: cred && cred.user ? cred.user.email : email };
       const existing = findStoreUser(username);
       if(existing){
         existing.name = fullname;
@@ -2589,7 +2592,7 @@ function openEditUserForm(u){
       return;
     }
     if(!currentPw){ errEl.textContent = 'أدخل كلمة مرورك الحالية للتأكيد'; errEl.style.display = 'block'; return; }
-    if(usernameChanged && state.users.some(x => x.id !== u.id && x.username === newUsername)){ errEl.textContent = 'اسم المستخدم ده مستخدم بالفعل'; errEl.style.display = 'block'; return; }
+    if(usernameChanged && state.users.some(x => x.id !== u.id && normalizeUsername(x.username) === normalizeUsername(newUsername))){ errEl.textContent = 'اسم المستخدم ده مستخدم بالفعل'; errEl.style.display = 'block'; return; }
     try{
       if(auth && auth.currentUser){
         // استخدم البريد المرتبط بجلسة Firebase الحالية؛ فقد يكون الاسم القديم
@@ -2598,11 +2601,14 @@ function openEditUserForm(u){
         if(!currentAuthEmail) throw Object.assign(new Error('auth-email-missing'), { code:'auth/invalid-credential' });
         const cred = firebase.auth.EmailAuthProvider.credential(currentAuthEmail, currentPw);
         await auth.currentUser.reauthenticateWithCredential(cred);
-        if(usernameChanged) await auth.currentUser.updateEmail(usernameToEmail(newUsername));
+        // لا نغيّر بريد Firebase عند تغيير الاسم؛ البريد الداخلي ثابت للحساب.
+        // نربط الاسم الجديد بـ authEmail داخل سجل المستخدم، فيعمل الدخول
+        // دون الاعتماد على updateEmail أو إعدادات تغيير البريد.
         if(newPassword) await auth.currentUser.updatePassword(newPassword);
       }
       u.name = name;
       u.username = newUsername;
+      if(auth && auth.currentUser && auth.currentUser.email) u.authEmail = auth.currentUser.email;
       const savedUser = await save('users');
       if(!savedUser) throw Object.assign(new Error('users-save-failed'), { code:'store/users-save-failed' });
       logAudit('تعديل حساب شخصي', 'users', { usernameChanged, passwordChanged: !!newPassword });
@@ -2667,8 +2673,9 @@ function openUserForm(){
         existing.name = name;
         existing.role = role;
         existing.id = newId;
+        existing.authEmail = email;
       } else {
-        state.users.push({ id: newId, name, username, role });
+        state.users.push({ id: newId, name, username, role, authEmail: email });
       }
       await save('users');
       logAudit('إضافة مستخدم', 'users', { name, username, role });
