@@ -2173,12 +2173,14 @@ function applyRolePermissions(){
 }
 
 function renderLoginScreen(){
-  const hasUsers = state.users.length > 0;
-  document.getElementById('loginNameField').style.display = hasUsers ? 'none' : 'block';
-  document.getElementById('loginTitle').textContent = hasUsers ? 'تسجيل الدخول' : 'أهلا بك في متجر العشري';
-  document.getElementById('loginSubtitle').style.display = hasUsers ? 'block' : 'none';
-  document.getElementById('loginSubtitle').textContent = hasUsers ? 'ادخل بيانات حسابك للمتابعة' : '';
-  document.getElementById('loginSubmitBtn').textContent = hasUsers ? 'دخول' : 'إنشاء الحساب والدخول';
+  // لا نعتمد على قراءة users قبل تسجيل الدخول؛ قواعد Firestore الآمنة تمنع ذلك.
+  // إنشاء أول حساب لا يظهر إلا برابط إعداد صريح ?setup=1.
+  const setupMode = new URLSearchParams(location.search).get('setup') === '1';
+  document.getElementById('loginNameField').style.display = setupMode ? 'block' : 'none';
+  document.getElementById('loginTitle').textContent = setupMode ? 'إعداد المتجر لأول مرة' : 'تسجيل الدخول';
+  document.getElementById('loginSubtitle').style.display = 'block';
+  document.getElementById('loginSubtitle').textContent = setupMode ? 'أنشئ حساب المدير الأول' : 'ادخل بيانات حسابك للمتابعة';
+  document.getElementById('loginSubmitBtn').textContent = setupMode ? 'إنشاء الحساب والدخول' : 'دخول';
   document.getElementById('loginBrand').textContent = state.settings.storeName || 'متجري';
   document.getElementById('loginMark').innerHTML = state.settings.logoDataUrl
     ? `<img src="${state.settings.logoDataUrl}" alt="">`
@@ -2251,6 +2253,7 @@ function lockoutRemainingMs(username){
 
 document.getElementById('loginSubmitBtn').addEventListener('click', async () => {
   const hasUsers = state.users.length > 0;
+  const setupMode = new URLSearchParams(location.search).get('setup') === '1';
     const username = normalizeUsername(document.getElementById('l_username').value);
   const password = document.getElementById('l_password').value;
   const errEl = document.getElementById('loginError');
@@ -2270,7 +2273,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
   const email = (knownUser && knownUser.authEmail) || usernameToEmail(username);
 
   // إنشاء أول حساب مدير (أول تشغيل للنظام)
-  if(!hasUsers){
+  if(!hasUsers && setupMode){
     const fullname = document.getElementById('l_fullname').value.trim();
     if(!fullname){ errEl.textContent = 'من فضلك أدخل اسمك'; errEl.style.display = 'block'; return; }
     if(password.length < 6){ errEl.textContent = 'كلمة المرور 6 أحرف على الأقل (شرط أساسي من نظام الحماية)'; errEl.style.display = 'block'; return; }
@@ -2320,10 +2323,10 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
       delete legacyUser.password;
       await save('users');
     }
+    // بعد نجاح Authentication فقط نقرأ users من Firestore؛ لا نعيد إنشاء
+    // سجل المستخدم ولا نكتب فوقه عندما تكون القراءة قبل الدخول ممنوعة.
+    if(!state.users.length) await loadAll();
     const userByAuthId = state.users.find(u => u.id === cred.user.uid);
-    // إذا كان البريد الداخلي القديم ما زال موجودًا في Firebase، لا نسمح
-    // باستخدام اسم المستخدم القديم بعد تغييره؛ المطابقة تكون بالاسم الحالي
-    // المحفوظ في Firestore وبنفس UID فقط.
     if(userByAuthId && normalizeUsername(userByAuthId.username) !== username){
       try{ await auth.signOut(); }catch(_e){}
       throw Object.assign(new Error('username-changed'), { code:'auth/username-changed' });
