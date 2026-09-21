@@ -513,7 +513,7 @@
           <input id="posSearch" placeholder="ابحث بالاسم أو الباركود">
           <span class="sic">🔍</span>
         </div>
-        <button class="btn btn-outline" id="scanBarcodeBtn" type="button" style="flex:0 0 auto; padding:10px 14px;" title="مسح باركود بالكاميرا">📷</button>
+        <button class="btn btn-outline barcode-camera-btn" id="scanBarcodeBtn" type="button" aria-label="مسح باركود بالكاميرا" style="flex:0 0 auto; padding:10px 14px;" title="مسح باركود بالكاميرا">📷</button>
       </div>
       <div class="chips" id="posChips"></div>
       <div id="parkedSection"></div>
@@ -1699,7 +1699,7 @@ function openProductForm(p, overrides){
     <div class="modal-title">${editing ? 'تعديل منتج' : 'إضافة منتج جديد'}</div>
     <div class="field"><label>اسم المنتج</label><input id="f_name" value="${esc(v.name)}"></div>
     <div class="field-row">
-      <div class="field" style="flex:1.5;"><label>الباركود / الكود</label><div class="row"><input id="f_barcode" value="${esc(v.barcode)}" inputmode="numeric"><button class="btn btn-outline" type="button" id="scanProductBarcodeBtn" title="مسح باركود بالكاميرا" style="flex:0 0 auto; padding:10px 12px;">📷</button></div></div>
+      <div class="field" style="flex:1.5;"><label>الباركود / الكود</label><div class="row"><input id="f_barcode" value="${esc(v.barcode)}" inputmode="numeric"><button class="btn btn-outline barcode-camera-btn" type="button" id="scanProductBarcodeBtn" aria-label="مسح باركود بالكاميرا" title="مسح باركود بالكاميرا" style="flex:0 0 auto; padding:10px 12px;">📷</button></div></div>
       <div class="field">
         <label>الفئة</label>
         <select id="f_category">${catOptions(v.category)}<option value="__new__">+ فئة جديدة</option></select>
@@ -1855,7 +1855,7 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
         <div style="position:relative;flex:1;">
           <input id="m_prod_search" placeholder="ابحث بالاسم أو الباركود" autocomplete="off" style="width:100%;">
         </div>
-        <button class="btn btn-outline" id="scanMoveBarcodeBtn" type="button" title="مسح باركود بالكاميرا" style="flex:0 0 48px;padding:10px 0;font-size:20px;">📷</button>
+        <button class="btn btn-outline barcode-camera-btn" id="scanMoveBarcodeBtn" type="button" aria-label="مسح باركود بالكاميرا" title="مسح باركود بالكاميرا" style="flex:0 0 48px;padding:10px 0;font-size:20px;">📷</button>
       </div>
       <input type="hidden" id="m_prod_id">
       <div id="m_prod_results" class="stack" style="margin-top:6px; max-height:180px; overflow-y:auto;"></div>
