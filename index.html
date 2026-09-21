@@ -269,6 +269,7 @@
   .search-wrap{ position:relative; margin-bottom:10px; }
   .search-wrap input{ padding-right:36px; }
   .search-wrap .sic{ position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--ink-faint); font-size:15px; }
+  @media (max-width:759px){ .view.active > .search-wrap{ position:sticky; top:0; z-index:8; padding-top:6px; background:var(--bg); } }
   .chips{ display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:6px; }
   .chip{
     white-space:nowrap; padding:6px 13px; border-radius:20px;
@@ -1079,6 +1080,16 @@ function toast(msg){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=> el.style.display='none', 2200);
 }
+function barcodeSuccessFeedback(name){
+  try{ if(navigator.vibrate) navigator.vibrate([35,45,35]); }catch(e){}
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(Ctx){ const ctx = new Ctx(), osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.frequency.value = 880; gain.gain.value = .045; osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + .09); }
+  }catch(e){}
+  toast('تم مسح الباركود: ' + name);
+}
 
 /* ---------------- modal ---------------- */
 const modalBack = document.getElementById('modalBack');
@@ -1326,9 +1337,16 @@ async function openBarcodeScanner(onDetected, title='مسح باركود الم�
 }
 document.getElementById('scanBarcodeBtn').addEventListener('click', () => openBarcodeScanner(value => {
   const match = activeProducts().find(p => p.barcode && p.barcode === value);
-  if(match){ addToCart(match); toast('تمت إضافة: ' + match.name); }
+  if(match){ addToCart(match); barcodeSuccessFeedback(match.name); }
   else toast('مفيش منتج بالباركود ده: ' + value);
 }));
+document.addEventListener('keydown', e => {
+  if(!currentUser) return;
+  if(e.key === 'F2'){ e.preventDefault(); document.getElementById('posSearch')?.focus(); return; }
+  if(e.key === 'F4'){ e.preventDefault(); document.getElementById('scanBarcodeBtn')?.click(); return; }
+  if(e.key === 'Escape' && document.getElementById('modalBack').classList.contains('open')){ closeModal(); return; }
+  if(e.ctrlKey && e.key === 'Enter' && document.getElementById('confirmSaleBtn')){ e.preventDefault(); confirmSale(); }
+});
 document.getElementById('posSearch').addEventListener('keydown', e => {
   if(e.key !== 'Enter') return;
   const term = posSearchTerm.trim();
@@ -1336,6 +1354,7 @@ document.getElementById('posSearch').addEventListener('keydown', e => {
   const match = activeProducts().find(p => p.barcode && p.barcode === term);
   if(match){
     addToCart(match);
+    barcodeSuccessFeedback(match.name);
     e.target.value = '';
     posSearchTerm = '';
     posRenderLimit = 60;
@@ -1860,6 +1879,8 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
       <input type="hidden" id="m_prod_id">
       <div id="m_prod_results" class="stack" style="margin-top:6px; max-height:180px; overflow-y:auto;"></div>
     </div>
+    <div id="m_move_summary" class="card" style="display:none;margin-bottom:12px;background:var(--primary-soft);border-color:#b7d8d4;"></div>
+    <div id="m_recent_moves" class="card" style="display:none;margin-bottom:12px;"></div>
     <div class="field">
       <label>نوع الحركة</label>
       <select id="m_type">
@@ -1874,7 +1895,21 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
   `);
   const searchInput = document.getElementById('m_prod_search');
   const resultsWrap = document.getElementById('m_prod_results');
+  const summaryWrap = document.getElementById('m_move_summary');
+  const recentWrap = document.getElementById('m_recent_moves');
   let scannedMoveBarcode = '';
+  function refreshMoveDetails(){
+    const p = findProduct(document.getElementById('m_prod_id').value);
+    if(!p){ summaryWrap.style.display='none'; recentWrap.style.display='none'; return; }
+    const type = document.getElementById('m_type').value;
+    const value = parseInt(document.getElementById('m_qty').value) || 0;
+    const after = type === 'in' ? p.qty + value : type === 'out' ? Math.max(0,p.qty-value) : value;
+    summaryWrap.style.display='block';
+    summaryWrap.innerHTML = `<b>ملخص الحركة</b><div class="muted" style="margin-top:4px;">${esc(p.name)} · ${type==='in'?'وارد':type==='out'?'منصرف':'تسوية جرد'} · الكمية: <b>${value}</b> · الرصيد بعد الحركة: <b>${after}</b> ${esc(p.unit||'')}</div>`;
+    const recent = state.moves.filter(m => m.productId === p.id).slice(0,5);
+    recentWrap.style.display = recent.length ? 'block' : 'none';
+    recentWrap.innerHTML = recent.length ? `<b>آخر حركات المنتج</b>${recent.map(m => `<div class="muted" style="padding-top:4px;">${m.type==='in'?'+':m.type==='out'?'-':'~'}${m.qty} · ${fmtDateShort(m.date)} · ${esc(m.reason||'بدون ملاحظة')}</div>`).join('')}` : '';
+  }
   document.getElementById('scanMoveBarcodeBtn').addEventListener('click', () => openBarcodeScanner(value => {
     scannedMoveBarcode = String(value || '').trim();
   }, 'مسح باركود المنتج لتسجيل الحركة', () => {
@@ -1890,6 +1925,8 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
       nextId.value = match.id;
       nextSearch.value = match.name + ' (باركود: ' + value + ')';
       nextResults.innerHTML = `<div class="prod-item" style="padding:8px 10px;border-color:#b7d8d4;"><div class="name" style="font-size:13px;">${esc(match.name)}</div><div class="sub">تم اختيار المنتج · المتاح: ${match.qty} ${esc(match.unit||'')}</div></div>`;
+      barcodeSuccessFeedback(match.name);
+      refreshMoveDetails();
     }, 0);
   }));
   function renderMoveResults(term){
@@ -1911,6 +1948,7 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
     document.getElementById('m_prod_id').value = p.id;
     searchInput.value = p.name + ' (متاح: ' + p.qty + ')';
     resultsWrap.innerHTML = '';
+    refreshMoveDetails();
   });
   const typeSel = document.getElementById('m_type');
   const qtyWrap = document.getElementById('m_qty_wrap');
@@ -1918,6 +1956,8 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
     qtyWrap.querySelector('label').textContent = typeSel.value === 'adjust' ? 'الكمية الفعلية بعد الجرد' : 'الكمية';
   }
   typeSel.addEventListener('change', refreshQtyLabel);
+  typeSel.addEventListener('change', refreshMoveDetails);
+  document.getElementById('m_qty').addEventListener('input', refreshMoveDetails);
   let moveSaving = false;
   document.getElementById('saveMoveBtn').addEventListener('click', async () => {
     if(moveSaving) return;
