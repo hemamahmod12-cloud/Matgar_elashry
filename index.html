@@ -545,11 +545,12 @@
       <button class="btn btn-primary btn-block" id="addProdBtn" style="margin-bottom:8px;">+ إضافة منتج جديد</button>
       <div class="row" style="margin-bottom:10px;">
         <label class="btn btn-outline" style="flex:1; text-align:center;">
-          استيراد ملف (CSV)
-          <input type="file" id="importCsvFile" accept=".csv,text/csv" style="display:none;">
+          استيراد ملف Excel / CSV
+          <input type="file" id="importCsvFile" accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel" style="display:none;">
         </label>
         <button class="btn btn-ghost" id="downloadTemplateBtn" style="flex:0 0 auto;">نموذج الملف</button>
       </div>
+      <div class="muted" style="margin:-4px 0 10px;line-height:1.6;">لأفضل نتيجة على الهاتف: افتح النموذج في Excel، عدّل الصفوف، ثم احفظه بصيغة <b>CSV UTF-8</b> وارفعه كما هو.</div>
       <div class="row between" style="margin-bottom:8px;">
         <div class="h2" style="margin:0;" id="prodMgmtTitle">المنتجات</div>
         <button class="btn btn-ghost btn-sm" id="toggleTrashBtn">🗑️ المحذوفات</button>
@@ -949,21 +950,45 @@ function mapCsvHeader(h){
   const raw = h.trim();
   return CSV_HEADER_MAP[raw.toLowerCase()] || CSV_HEADER_MAP[raw] || null;
 }
+function csvCells(line, delimiter){
+  const cells = []; let cell = ''; let quoted = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(ch === '"' && line[i+1] === '"'){ cell += '"'; i++; continue; }
+    if(ch === '"'){ quoted = !quoted; continue; }
+    if(ch === delimiter && !quoted){ cells.push(cell.trim()); cell = ''; continue; }
+    cell += ch;
+  }
+  cells.push(cell.trim()); return cells;
+}
 function parseCSV(text){
-  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  const clean = String(text || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
+  let lines = clean.split('\n').filter(l => l.trim().length);
+  if(lines[0] && /^sep\s*=\s*[,;\t]$/i.test(lines[0].trim())) lines.shift();
   if(lines.length < 2) return [];
-  const headers = lines[0].split(',').map(mapCsvHeader);
+  const first = lines[0];
+  const delimiters = [',',';','\t'];
+  const delimiter = delimiters.sort((a,b) => csvCells(first,b).length - csvCells(first,a).length)[0];
+  const headers = csvCells(first, delimiter).map(mapCsvHeader);
   const rows = [];
   for(let i=1;i<lines.length;i++){
-    const cells = lines[i].split(',');
+    const cells = csvCells(lines[i], delimiter);
     const obj = {};
     headers.forEach((key, idx) => { if(key) obj[key] = (cells[idx]||'').trim(); });
     if(obj.name) rows.push(obj);
   }
   return rows;
 }
+function importNumber(value, fallback=0){
+  let s = String(value ?? '').trim().replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+  if(s.includes(',') && !s.includes('.')) s = s.replace(',', '.');
+  s = s.replace(/\s/g, '').replace(/,/g, '');
+  const n = parseFloat(s); return Number.isFinite(n) ? n : fallback;
+}
 function downloadCsvTemplate(){
-  const csv = 'name,barcode,category,buyPrice,sellPrice,qty,minQty,unit\nمياه معدنية 600مل,1001,مشروبات,3,5,40,10,قطعة\n';
+  const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const csv = ['sep=,','name,barcode,category,buyPrice,sellPrice,qty,minQty,unit',
+    ['مياه معدنية 600مل','1001','مشروبات','3','5','40','10','قطعة'].map(q).join(',')].join('\r\n') + '\r\n';
   const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -974,15 +999,16 @@ function downloadCsvTemplate(){
 async function importProductsCsv(e){
   const file = e.target.files[0];
   if(!file) return;
+  if(file.size > 5 * 1024 * 1024){ toast('حجم الملف كبير، استخدم ملفًا أقل من 5 ميجابايت'); e.target.value = ''; return; }
   const reader = new FileReader();
   reader.onload = async () => {
     const rows = parseCSV(reader.result);
-    if(rows.length === 0){ toast('لم يتم العثور على بيانات صحيحة في الملف، تأكد من استخدام نفس شكل النموذج'); return; }
+    if(rows.length === 0){ toast('تعذر قراءة الملف. احفظه بصيغة CSV UTF-8 وبنفس أعمدة النموذج'); e.target.value = ''; return; }
     if(!confirm(`سيتم إضافة ${rows.length} منتج جديد للنظام. متابعة؟`)) return;
     const newProducts = rows.map(r => ({
       id: uid(), name: r.name, barcode: r.barcode || '', category: r.category || 'عام',
-      buyPrice: parseFloat(r.buyPrice) || 0, sellPrice: parseFloat(r.sellPrice) || 0,
-      qty: parseInt(r.qty) || 0, minQty: parseInt(r.minQty) || 5, unit: r.unit || 'قطعة'
+      buyPrice: Math.max(0, importNumber(r.buyPrice)), sellPrice: Math.max(0, importNumber(r.sellPrice)),
+      qty: Math.max(0, Math.floor(importNumber(r.qty))), minQty: Math.max(0, Math.floor(importNumber(r.minQty, 5))), unit: r.unit || 'قطعة'
     }));
     const added = newProducts.length;
     const importMove = { id: uid(), date: Date.now(), productId:null, productName:'استيراد جماعي', type:'in', qty: added, reason: `استيراد ${added} منتج من ملف` };
@@ -1024,7 +1050,7 @@ async function importProductsCsv(e){
       toast(`تم استيراد ${added} منتج بنجاح`);
     }catch(err){
       toast('تعذر إتمام الاستيراد، تأكد من الاتصال وحاول تاني');
-    }
+    } finally { e.target.value = ''; }
   };
   reader.readAsText(file, 'UTF-8');
 }
