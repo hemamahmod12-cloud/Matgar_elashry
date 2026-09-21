@@ -1851,7 +1851,12 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
     <div class="modal-title">تسجيل حركة مخزون</div>
     <div class="field">
       <label>المنتج</label>
-      <input id="m_prod_search" placeholder="ابحث بالاسم أو الباركود" autocomplete="off">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="position:relative;flex:1;">
+          <input id="m_prod_search" placeholder="ابحث بالاسم أو الباركود" autocomplete="off" style="width:100%;">
+        </div>
+        <button class="btn btn-outline" id="scanMoveBarcodeBtn" type="button" title="مسح باركود بالكاميرا" style="flex:0 0 48px;padding:10px 0;font-size:20px;">📷</button>
+      </div>
       <input type="hidden" id="m_prod_id">
       <div id="m_prod_results" class="stack" style="margin-top:6px; max-height:180px; overflow-y:auto;"></div>
     </div>
@@ -1869,6 +1874,24 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
   `);
   const searchInput = document.getElementById('m_prod_search');
   const resultsWrap = document.getElementById('m_prod_results');
+  let scannedMoveBarcode = '';
+  document.getElementById('scanMoveBarcodeBtn').addEventListener('click', () => openBarcodeScanner(value => {
+    scannedMoveBarcode = String(value || '').trim();
+  }, 'مسح باركود المنتج لتسجيل الحركة', () => {
+    const value = scannedMoveBarcode;
+    closeModal();
+    document.getElementById('openMoveBtn').click();
+    setTimeout(() => {
+      const match = activeProducts().find(p => String(p.barcode || '').trim() === value);
+      const nextSearch = document.getElementById('m_prod_search');
+      const nextId = document.getElementById('m_prod_id');
+      const nextResults = document.getElementById('m_prod_results');
+      if(!match){ toast('لا يوجد منتج بهذا الباركود: ' + value); return; }
+      nextId.value = match.id;
+      nextSearch.value = match.name + ' (باركود: ' + value + ')';
+      nextResults.innerHTML = `<div class="prod-item" style="padding:8px 10px;border-color:#b7d8d4;"><div class="name" style="font-size:13px;">${esc(match.name)}</div><div class="sub">تم اختيار المنتج · المتاح: ${match.qty} ${esc(match.unit||'')}</div></div>`;
+    }, 0);
+  }));
   function renderMoveResults(term){
     const t = term.trim().toLowerCase();
     if(!t){ resultsWrap.innerHTML = ''; return; }
