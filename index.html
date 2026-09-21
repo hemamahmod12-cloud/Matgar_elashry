@@ -550,6 +550,7 @@
         </label>
         <button class="btn btn-ghost" id="downloadTemplateBtn" style="flex:0 0 auto;">نموذج الملف</button>
       </div>
+      <button class="btn btn-primary btn-block" id="exportProductsBtn" style="margin-bottom:10px;">حفظ منتجات المنصة على الهاتف</button>
       <div class="muted" style="margin:-4px 0 10px;line-height:1.6;">لأفضل نتيجة على الهاتف: افتح النموذج في Excel، عدّل الصفوف، ثم احفظه بصيغة <b>CSV UTF-8</b> وارفعه كما هو.</div>
       <div class="row between" style="margin-bottom:8px;">
         <div class="h2" style="margin:0;" id="prodMgmtTitle">المنتجات</div>
@@ -989,12 +990,23 @@ function downloadCsvTemplate(){
   const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const csv = ['sep=,','name,barcode,category,buyPrice,sellPrice,qty,minQty,unit',
     ['مياه معدنية 600مل','1001','مشروبات','3','5','40','10','قطعة'].map(q).join(',')].join('\r\n') + '\r\n';
+  downloadCsvFile(csv, 'نموذج-استيراد-منتجات.csv');
+}
+function downloadCsvFile(csv, filename){
   const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'نموذج-استيراد-منتجات.csv';
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = filename; a.rel = 'noopener';
   document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportProductsCsv(){
+  const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const products = activeProducts();
+  if(!products.length){ toast('لا توجد منتجات متاحة للحفظ'); return; }
+  const lines = ['sep=,','name,barcode,category,buyPrice,sellPrice,qty,minQty,unit'];
+  products.forEach(p => lines.push([p.name,p.barcode||'',p.category||'عام',p.buyPrice??0,p.sellPrice??0,p.qty??0,p.minQty??0,p.unit||'قطعة'].map(q).join(',')));
+  downloadCsvFile(lines.join('\r\n') + '\r\n', `منتجات-متجر-العشري-${new Date().toISOString().slice(0,10)}.csv`);
+  toast(`تم حفظ ${products.length} منتج على الهاتف`);
 }
 async function importProductsCsv(e){
   const file = e.target.files[0];
@@ -1719,6 +1731,7 @@ document.getElementById('prodMgmtList').addEventListener('click', async e => {
 });
 document.getElementById('addProdBtn').addEventListener('click', () => openProductForm(null));
 document.getElementById('downloadTemplateBtn').addEventListener('click', downloadCsvTemplate);
+document.getElementById('exportProductsBtn').addEventListener('click', exportProductsCsv);
 document.getElementById('importCsvFile').addEventListener('change', importProductsCsv);
 
 function catOptions(selected){
