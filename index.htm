@@ -2320,7 +2320,15 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
       delete legacyUser.password;
       await save('users');
     }
-    let user = state.users.find(u => u.id === cred.user.uid) || findStoreUser(username);
+    const userByAuthId = state.users.find(u => u.id === cred.user.uid);
+    // إذا كان البريد الداخلي القديم ما زال موجودًا في Firebase، لا نسمح
+    // باستخدام اسم المستخدم القديم بعد تغييره؛ المطابقة تكون بالاسم الحالي
+    // المحفوظ في Firestore وبنفس UID فقط.
+    if(userByAuthId && normalizeUsername(userByAuthId.username) !== username){
+      try{ await auth.signOut(); }catch(_e){}
+      throw Object.assign(new Error('username-changed'), { code:'auth/username-changed' });
+    }
+    let user = userByAuthId || findStoreUser(username);
     // حساب Auth موجود لكن سجل المتجر مفقود؛ ننشئ سجلًا قابلًا للدخول بدل
     // عرض رسالتين متناقضتين. يبدأ كاشيرًا ويمكن للمدير تعديل الصلاحية.
     if(!user){
@@ -2335,7 +2343,9 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
     showApp();
   }catch(e){
     recordFailedAttempt(username);
-    errEl.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
+    errEl.textContent = e.code === 'auth/username-changed'
+      ? 'اسم المستخدم القديم لم يعد صالحًا. استخدم اسم المستخدم الجديد.'
+      : 'اسم المستخدم أو كلمة المرور غير صحيحة';
     errEl.style.display = 'block';
   }
 });
