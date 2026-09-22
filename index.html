@@ -126,6 +126,34 @@
     nav.tabbar button{color:#b7cbd4;}
     nav.tabbar button.active{background:rgba(255,255,255,.12);color:#fff;}
   }
+  /* طبقة الصقل البصري: هدوء، وضوح، ومساحات مريحة بدون تغيير سلوك النظام */
+  header.topbar{min-height:76px;backdrop-filter:blur(12px);}
+  header.topbar .store-name{font-size:20px;letter-spacing:-.35px;}
+  header.topbar .date{letter-spacing:.1px;}
+  .topbar-brand{gap:13px;}
+  .topbar-logo{width:46px;height:46px;border-radius:14px;box-shadow:0 8px 20px rgba(0,0,0,.16);}
+  main{padding-top:22px;}
+  .view.active{animation:softViewIn .22s ease both;}
+  @keyframes softViewIn{from{opacity:.72;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .card{border-radius:16px;box-shadow:0 10px 28px rgba(16,42,67,.055);}
+  .h2{font-size:16px;letter-spacing:-.25px;color:#173b4f;}
+  .btn{min-height:42px;letter-spacing:-.05px;}
+  .btn-primary{background:linear-gradient(135deg,#0b7668 0%,#174f67 100%);}
+  .btn-primary:hover{filter:brightness(1.04);box-shadow:0 10px 24px rgba(11,118,104,.22);}
+  .btn-outline:hover,.btn-ghost:hover{border-color:#287d78;background:#f4faf9;color:#0b5d55;}
+  input,select,textarea{border-radius:10px;min-height:44px;}
+  .search-wrap input{box-shadow:0 4px 14px rgba(16,42,67,.035);}
+  .prod-item{border-radius:13px;padding:13px 14px;background:linear-gradient(180deg,#fff 0%,#fbfdfe 100%);}
+  .prod-item .name{color:#173b4f;}
+  .stat-box{border-radius:15px;background:linear-gradient(145deg,#fff 0%,#f7fbfc 100%);}
+  nav.tabbar button{letter-spacing:-.1px;}
+  nav.tabbar button .ic{filter:saturate(.82);}
+  .checkout-bar{backdrop-filter:blur(14px);box-shadow:0 -10px 30px rgba(16,42,67,.12);}
+  @media (max-width:759px){
+    main{padding:16px 12px 90px;}
+    header.topbar{min-height:70px;}
+    .card{border-radius:14px;}
+  }
   #splash{
     position:fixed; inset:0; background:var(--primary-dark); color:#fff;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; z-index:100;
@@ -603,11 +631,11 @@
     </div>
   </div>
 
-  <nav class="tabbar">
-    <button data-view="cashier" class="active"><span class="ic">🧾</span>الكاشير</button>
-    <button data-view="stock" data-admin-only="1"><span class="ic">📦</span>المخزون</button>
-    <button data-view="products" data-admin-only="1"><span class="ic">🏷️</span>المنتجات</button>
-    <button data-view="reports" data-admin-only="1"><span class="ic">📊</span>التقارير</button>
+  <nav class="tabbar" aria-label="التنقل الرئيسي">
+    <button data-view="cashier" class="active" aria-label="شاشة الكاشير"><span class="ic">🧾</span>الكاشير</button>
+    <button data-view="stock" data-admin-only="1" aria-label="إدارة المخزون"><span class="ic">📦</span>المخزون</button>
+    <button data-view="products" data-admin-only="1" aria-label="إدارة المنتجات"><span class="ic">🏷️</span>المنتجات</button>
+    <button data-view="reports" data-admin-only="1" aria-label="التقارير"><span class="ic">📊</span>التقارير</button>
   </nav>
 
 </div>
