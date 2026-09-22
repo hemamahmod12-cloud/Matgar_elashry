@@ -620,6 +620,7 @@
 <script src="src/shared-utils.js"></script>
 <script src="src/sale-calculator.js"></script>
 <script src="src/store-repository.js"></script>
+<script src="src/collections-repository.js"></script>
 <script>
 (function(){
 
@@ -628,6 +629,8 @@
 // كل البيانات تظل داخل storeData/{key} كما هي في Firebase الحالي.
 const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'categories', settings:'settings', users:'users', suppliers:'suppliers', parked:'parked', expenses:'expenses' };
 let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, users: [], suppliers: [], parked: [], expenses: [] };
+// يتحول إلى true فقط بعد اكتمال الترحيل واختبار Cloud Functions والـ Collections الجديدة.
+const COLLECTIONS_BACKEND_ENABLED = false;
 let storageOK = true;
 let storageMode = 'none'; // 'firebase' | 'claude' | 'browser' | 'none'
 let currentUser = null;
@@ -1456,6 +1459,25 @@ function reopenPayModalIfCartNotEmpty(){
   document.getElementById('payBtn').click();
 }
 
+async function confirmSaleViaCollections(payment){
+  const requestId = await MatgarCollections.createSaleRequest({
+    cashierId: currentUser.id,
+    cashierName: currentUser.name,
+    items: cart.map(line => ({
+      productId: line.productId,
+      qty: line.qty,
+      lineDiscount: line.discount || 0
+    })),
+    subtotal: payment.subtotal,
+    discount: payment.discount,
+    tax: payment.tax,
+    total: payment.total,
+    paymentMethod: payment.paymentMethod,
+    received: payment.received
+  });
+  return MatgarCollections.processSaleRequest(requestId);
+}
+
 async function confirmSale(){
   if(cart.length === 0 || saleInProgress) return;
   if(!requireCloudForSensitiveWrite()) return;
@@ -1477,7 +1499,18 @@ async function confirmSale(){
     const { subtotal, discount, tax, total, change } = payment;
     let sale;
 
-    if(db && storageMode === 'firebase'){
+    if(COLLECTIONS_BACKEND_ENABLED){
+      const result = await confirmSaleViaCollections(payment);
+      sale = {
+        id: result.saleId,
+        invoiceNo: result.invoiceNo,
+        date: Date.now(),
+        items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, discount:c.discount||0 })),
+        subtotal, discount, tax, total, paymentMethod, received, change,
+        cashierName: currentUser ? currentUser.name : '', returned:false
+      };
+      state.sales = [sale, ...state.sales];
+    } else if(db && storageMode === 'firebase'){
       // معاملة ذرية (transaction): بتقرأ أحدث نسخة من المخزون والفواتير في
       // نفس لحظة الحفظ، مش النسخة القديمة المخزّنة عندك في المتصفح.
       // فلو كاشيرين اتنين بيبيعوا في نفس اللحظة بالظبط، Firebase بيعيد

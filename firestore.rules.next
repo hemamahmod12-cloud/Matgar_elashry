@@ -140,7 +140,7 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
-      match /returns/{returnId} {
+      match /returnRequests/{returnId} {
         allow read: if isAdmin(storeId)
           || (isCashier(storeId)
             && resource.data.cashierId == request.auth.uid);
