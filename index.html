@@ -938,9 +938,14 @@ function debounce(fn, ms){
     function parseCSV(text){ return MatgarUtils.parseCSV(text); }
     function importNumber(value, fallback=0){ return MatgarUtils.importNumber(value, fallback); }
 function downloadCsvTemplate(){
-  const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
-  const csv = ['sep=,','name,barcode,category,buyPrice,sellPrice,qty,minQty,unit',
-    ['مياه معدنية 600مل','1001','مشروبات','3','5','40','10','قطعة'].map(q).join(',')].join('\r\n') + '\r\n';
+  const quoteCsv = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const headers = ['اسم المنتج','الباركود','الفئة','سعر الشراء','سعر البيع','الكمية','حد التنبيه','الوحدة'];
+  const sampleProduct = ['مياه معدنية 600مل','1001','مشروبات','3','5','40','10','قطعة'];
+  const csv = [
+    'sep=;',
+    headers.map(quoteCsv).join(';'),
+    sampleProduct.map(quoteCsv).join(';')
+  ].join('\r\n') + '\r\n';
   downloadCsvFile(csv, 'نموذج-استيراد-منتجات.csv');
 }
 function downloadCsvFile(csv, filename){
