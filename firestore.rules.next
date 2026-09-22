@@ -1,0 +1,196 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userRef(storeId, uid) {
+      return /databases/$(database)/documents/stores/$(storeId)/users/$(uid);
+    }
+
+    function userExists(storeId) {
+      return signedIn() && exists(userRef(storeId, request.auth.uid));
+    }
+
+    function me(storeId) {
+      return get(userRef(storeId)).data;
+    }
+
+    function hasRole(storeId, role) {
+      return userExists(storeId)
+        && me(storeId).role == role
+        && me(storeId).active == true;
+    }
+
+    function isAdmin(storeId) {
+      return hasRole(storeId, 'admin');
+    }
+
+    function isCashier(storeId) {
+      return hasRole(storeId, 'cashier');
+    }
+
+    function isStaff(storeId) {
+      return isAdmin(storeId) || isCashier(storeId);
+    }
+
+    function validMoney(value) {
+      return value is number && value >= 0;
+    }
+
+    function validText(value, maxLength) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= maxLength;
+    }
+
+    function validProduct(data) {
+      return validText(data.name, 200)
+        && validMoney(data.buyPrice)
+        && validMoney(data.sellPrice)
+        && data.qty is number
+        && data.qty >= 0
+        && data.minQty is number
+        && data.minQty >= 0
+        && data.deleted is bool;
+    }
+
+    function validUser(data) {
+      return validText(data.name, 150)
+        && validText(data.username, 100)
+        && data.role in ['admin', 'cashier']
+        && data.active is bool;
+    }
+
+    function validSaleRequest(data) {
+      return data.cashierId == request.auth.uid
+        && data.status == 'pending'
+        && data.items is list
+        && data.items.size() > 0
+        && data.paymentMethod in ['نقدي', 'بطاقة', 'محفظة']
+        && validMoney(data.subtotal)
+        && validMoney(data.discount)
+        && validMoney(data.tax)
+        && validMoney(data.total)
+        && data.discount <= data.subtotal
+        && data.total == data.subtotal - data.discount + data.tax;
+    }
+
+    function validAuditEntry() {
+      return request.resource.data.byUserId == request.auth.uid
+        && request.resource.data.action is string
+        && request.resource.data.action.size() > 0
+        && request.resource.data.targetType is string
+        && request.resource.data.createdAt == request.time;
+    }
+
+    match /stores/{storeId} {
+      allow read, write: if false;
+
+      match /users/{uid} {
+        allow read: if isAdmin(storeId)
+          || (signedIn() && request.auth.uid == uid);
+        allow create: if isAdmin(storeId)
+          && validUser(request.resource.data);
+        allow update: if isAdmin(storeId)
+          && validUser(request.resource.data);
+        allow delete: if false;
+      }
+
+      match /products/{productId} {
+        allow read: if isStaff(storeId);
+        allow create, update: if isAdmin(storeId)
+          && validProduct(request.resource.data);
+        allow delete: if false;
+      }
+
+      match /categories/{categoryId} {
+        allow read: if isStaff(storeId);
+        allow create, update: if isAdmin(storeId)
+          && validText(request.resource.data.name, 100)
+          && request.resource.data.deleted is bool;
+        allow delete: if false;
+      }
+
+      match /suppliers/{supplierId} {
+        allow read: if isStaff(storeId);
+        allow create, update: if isAdmin(storeId)
+          && validText(request.resource.data.name, 200)
+          && request.resource.data.deleted is bool;
+        allow delete: if false;
+      }
+
+      match /saleRequests/{requestId} {
+        allow create: if isStaff(storeId)
+          && validSaleRequest(request.resource.data);
+        allow read: if isAdmin(storeId)
+          || (isCashier(storeId)
+            && resource.data.cashierId == request.auth.uid);
+        allow update, delete: if false;
+      }
+
+      match /sales/{saleId} {
+        allow read: if isAdmin(storeId)
+          || (isCashier(storeId)
+            && resource.data.cashierId == request.auth.uid);
+        // الإنشاء والتعديل والحذف يتم من خدمة موثوقة فقط.
+        allow create, update, delete: if false;
+      }
+
+      match /returns/{returnId} {
+        allow read: if isAdmin(storeId)
+          || (isCashier(storeId)
+            && resource.data.cashierId == request.auth.uid);
+        allow create: if isStaff(storeId)
+          && request.resource.data.cashierId == request.auth.uid
+          && request.resource.data.saleId is string
+          && request.resource.data.saleId.size() > 0
+          && request.resource.data.items is list
+          && request.resource.data.items.size() > 0
+          && request.resource.data.status == 'pending';
+        allow update, delete: if false;
+      }
+
+      match /stockMoves/{moveId} {
+        allow read: if isStaff(storeId);
+        // تعديلات المخزون من خدمة موثوقة فقط.
+        allow create, update, delete: if false;
+      }
+
+      match /invoiceCounters/{counterId} {
+        allow read: if isStaff(storeId);
+        allow create, update, delete: if false;
+      }
+
+      match /settings/{settingId} {
+        allow read: if isStaff(storeId);
+        allow create, update: if isAdmin(storeId);
+        allow delete: if false;
+      }
+
+      match /auditLog/{entryId} {
+        allow read: if isAdmin(storeId);
+        allow create: if isStaff(storeId)
+          && validAuditEntry();
+        allow update, delete: if false;
+      }
+
+      match /backups/{backupId} {
+        allow read: if isAdmin(storeId);
+        allow create: if isAdmin(storeId);
+        allow update, delete: if false;
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
