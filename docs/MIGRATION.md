@@ -67,3 +67,9 @@ stores/main/_migrations/legacy-store-data-v1
 أضيف `src/collections-repository.js` وجرى ربطه بالواجهة. مسار البيع الجديد موجود خلف `COLLECTIONS_BACKEND_ENABLED = false` في `index.html`، لذلك لم يتغير سلوك الإنتاج الحالي قبل اكتمال الترحيل والاختبار.
 
 لا يجوز تحويل المفتاح إلى `true` إلا بعد إنشاء Collections الجديدة، ترحيل البيانات والتحقق منها، نشر Cloud Functions، تعديل مزامنة المنتجات والمستخدمين إلى المسارات الجديدة، واختبار البيع والاسترجاع على Emulator.
+
+## بوابة تفعيل الإنتاج
+
+أضيفت `scripts/activate-collections-production.cjs`، وهي لا تفعل `COLLECTIONS_BACKEND_ENABLED` إلا بعد وجود marker ترحيل مكتمل ووجود مستندات في Collections الأساسية (`products`, `sales`, `users`, `stockMoves`). عند فشل أي شرط تبقى الواجهة على المسار القديم.
+
+أضيف `.github/workflows/deploy-functions.yml` للنشر اليدوي فقط. يجب إنشاء GitHub Actions secret باسم `FIREBASE_SERVICE_ACCOUNT` يحتوي JSON لحساب خدمة Firebase، ثم تشغيل Workflow يدويًا من تبويب Actions. لم يتم وضع المفتاح في المستودع.
