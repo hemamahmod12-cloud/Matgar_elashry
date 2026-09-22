@@ -47,6 +47,12 @@
       date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
   }
 
+  function safeImageDataUrl(value) {
+    const source = String(value || '');
+    if (source.length > 2 * 1024 * 1024) return '';
+    return /^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/=]+$/i.test(source) ? source : '';
+  }
+
   function csvCells(line, delimiter) {
     const cells = [];
     let cell = '';
@@ -96,7 +102,7 @@
   }
 
   global.MatgarUtils = Object.freeze({
-    escapeHtml, roundMoney, formatMoney, daysToExpiry, todayArabic, formatDateShort,
+    escapeHtml, roundMoney, formatMoney, daysToExpiry, todayArabic, formatDateShort, safeImageDataUrl,
     csvCells, mapCsvHeader, parseCSV, importNumber
   });
 }(window));

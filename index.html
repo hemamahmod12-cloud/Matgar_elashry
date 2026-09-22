@@ -764,6 +764,14 @@ async function storageSet(key, value){
   return idbSet(key, value);
 }
 
+function requireCloudForSensitiveWrite(){
+  if(db && storageMode !== 'firebase'){
+    toast('الاتصال السحابي غير متاح. لم يتم حفظ العملية حتى لا تختلف البيانات بين الأجهزة.');
+    return false;
+  }
+  return true;
+}
+
 async function loadAll(){
   try{
     const firebaseFallback = storageMode === 'firebase-fallback';
@@ -911,6 +919,7 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
     function todayStr(){ return MatgarUtils.todayArabic(); }
     function fmtDateShort(ts){ return MatgarUtils.formatDateShort(ts); }
     function esc(str){ return MatgarUtils.escapeHtml(str); }
+    function safeLogoSrc(){ return MatgarUtils.safeImageDataUrl(state.settings.logoDataUrl); }
 function findProduct(id){ return state.products.find(p => p.id === id); }
 // المنتجات الفعّالة فقط (مش المحذوفة) — دي اللي المفروض تظهر في البيع والتقارير والبحث اليومي
 function activeProducts(){ return state.products.filter(p => !p.deleted); }
@@ -1444,6 +1453,7 @@ function reopenPayModalIfCartNotEmpty(){
 
 async function confirmSale(){
   if(cart.length === 0 || saleInProgress) return;
+  if(!requireCloudForSensitiveWrite()) return;
   saleInProgress = true;
   const confirmBtn = document.getElementById('confirmSaleBtn');
   if(confirmBtn){ confirmBtn.disabled = true; confirmBtn.textContent = 'جاري الحفظ...'; }
@@ -1571,7 +1581,8 @@ async function confirmSale(){
 }
 
 function printSale(sale){
-  const logo = state.settings.logoDataUrl ? `<img src="${state.settings.logoDataUrl}" alt="شعار المتجر" class="print-logo">` : '';
+  const logoSrc = safeLogoSrc();
+  const logo = logoSrc ? `<img src="${logoSrc}" alt="شعار المتجر" class="print-logo">` : '';
   const rows = (sale.items||[]).map(i => `<tr><td>${esc(i.name)}</td><td>${i.qty}</td><td>${money(i.price)}</td><td>${money(i.price*i.qty)}</td></tr>`).join('');
   const popup = window.open('', '_blank', 'width=420,height=720');
   if(!popup){ toast('اسمح بالنوافذ المنبثقة لإعادة طباعة الفاتورة'); return; }
@@ -1584,7 +1595,7 @@ function showReceipt(sale){
   openModal(`
     <div class="modal-title">تمت عملية البيع بنجاح ✅</div>
     <div class="receipt card">
-      ${state.settings.logoDataUrl ? `<div style="text-align:center; margin-bottom:6px;"><img src="${state.settings.logoDataUrl}" style="max-height:56px; max-width:100%;"></div>` : ''}
+      ${safeLogoSrc() ? `<div style="text-align:center; margin-bottom:6px;"><img src="${safeLogoSrc()}" style="max-height:56px; max-width:100%;"></div>` : ''}
       <div class="row between"><b>${esc(state.settings.storeName)}</b><span class="muted">${fmtDateShort(sale.date)}</span></div>
       <div class="muted" style="margin-bottom:2px;">فاتورة رقم #${sale.invoiceNo} · الكاشير: ${esc(sale.cashierName || '—')}</div>
       <hr class="line">
@@ -1950,6 +1961,7 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
   let moveSaving = false;
   document.getElementById('saveMoveBtn').addEventListener('click', async () => {
     if(moveSaving) return;
+    if(!requireCloudForSensitiveWrite()) return;
     const productId = document.getElementById('m_prod_id').value;
     const type = typeSel.value;
     const val = parseInt(document.getElementById('m_qty').value);
@@ -2130,6 +2142,7 @@ document.getElementById('addExpenseBtn').addEventListener('click', () => {
     <button class="btn btn-primary btn-block" id="saveExpenseBtn">حفظ المصروف</button>
   `);
   document.getElementById('saveExpenseBtn').addEventListener('click', async () => {
+    if(!requireCloudForSensitiveWrite()) return;
     const amount = parseFloat(document.getElementById('ex_amount').value);
     if(!amount || amount <= 0){ toast('أدخل مبلغ صحيح أكبر من صفر'); return; }
     const category = document.getElementById('ex_category').value;
@@ -2171,6 +2184,7 @@ function openSaleDetail(saleId){
   if(!s.returned){
     document.getElementById('returnSaleBtn').addEventListener('click', async () => {
       if(returnInProgress) return;
+      if(!requireCloudForSensitiveWrite()) return;
       if(!confirm('سيتم إرجاع كل الأصناف للمخزون وتعليم الفاتورة كمرتجعة. متأكد؟')) return;
       returnInProgress = true;
       const btn = document.getElementById('returnSaleBtn');
@@ -2273,8 +2287,8 @@ function renderLoginScreen(){
   document.getElementById('loginSubtitle').textContent = setupMode ? 'أنشئ حساب المدير الأول' : 'ادخل بيانات حسابك للمتابعة';
   document.getElementById('loginSubmitBtn').textContent = setupMode ? 'إنشاء الحساب والدخول' : 'دخول';
   document.getElementById('loginBrand').textContent = state.settings.storeName || 'متجري';
-  document.getElementById('loginMark').innerHTML = state.settings.logoDataUrl
-    ? `<img src="${state.settings.logoDataUrl}" alt="">`
+  document.getElementById('loginMark').innerHTML = safeLogoSrc()
+    ? `<img src="${safeLogoSrc()}" alt="">`
     : '🏪';
   const pwInput = document.getElementById('l_password');
   pwInput.type = 'password';
@@ -2479,13 +2493,13 @@ function openSettings(){
     </div>
     <div class="field">
       <label>شعار المتجر (يظهر أعلى الإيصال)</label>
-      ${state.settings.logoDataUrl ? `<div style="margin-bottom:6px;"><img src="${state.settings.logoDataUrl}" style="max-height:50px;"></div>` : ''}
+      ${safeLogoSrc() ? `<div style="margin-bottom:6px;"><img src="${safeLogoSrc()}" style="max-height:50px;"></div>` : ''}
       <div class="row" style="gap:8px;">
         <label class="btn btn-ghost btn-sm" style="flex:1; text-align:center;">
-          ${state.settings.logoDataUrl ? 'تغيير الشعار' : 'رفع شعار'}
+          ${safeLogoSrc() ? 'تغيير الشعار' : 'رفع شعار'}
           <input type="file" id="logoUpload" accept="image/*" style="display:none;">
         </label>
-        ${state.settings.logoDataUrl ? '<button class="btn btn-danger btn-sm" id="removeLogoBtn" type="button">حذف الشعار</button>' : ''}
+        ${safeLogoSrc() ? '<button class="btn btn-danger btn-sm" id="removeLogoBtn" type="button">حذف الشعار</button>' : ''}
       </div>
     </div>
     <button class="btn btn-primary btn-block" id="saveSettingsBtn" style="margin-bottom:16px;">حفظ</button>
@@ -2892,7 +2906,7 @@ function importBackup(e){
 /* ================= INIT ================= */
 function updateBranding(){
   const name = state.settings.storeName || 'متجري';
-  const logoDataUrl = state.settings.logoDataUrl || '';
+  const logoDataUrl = safeLogoSrc();
   const nameBtn = document.getElementById('storeNameBtn');
   if(nameBtn) nameBtn.textContent = name;
   const loginBrand = document.getElementById('loginBrand');

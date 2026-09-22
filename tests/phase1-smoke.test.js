@@ -11,6 +11,8 @@ for (const file of ['src/shared-utils.js', 'src/sale-calculator.js']) {
 
 const { MatgarUtils, MatgarSales } = context.window;
 assert.equal(MatgarUtils.escapeHtml('<script>alert(1)</script>'), '&lt;script&gt;alert(1)&lt;/script&gt;');
+assert.equal(MatgarUtils.safeImageDataUrl('javascript:alert(1)'), '');
+assert.equal(MatgarUtils.safeImageDataUrl('data:text/html;base64,PHNjcmlwdD4='), '');
 assert.equal(MatgarUtils.importNumber('١٢٫٥'), 12.5);
 assert.equal(JSON.stringify(MatgarUtils.parseCSV('name,qty\n"أرز, فاخر",3')), JSON.stringify([{ name: 'أرز, فاخر', qty: '3' }]));
 

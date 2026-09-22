@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // مدير المنصة — UID ثابت لا يتغير عند تغيير اسم المستخدم
+    function isAdmin() {
+      return signedIn()
+        && request.auth.uid == 'VvzxZTFfYOawEnk4vw3QtFNFGR2';
+    }
+
+    /*
+      قواعد انتقالية متوافقة مع نموذج البيانات القديم.
+      ملاحظة مهمة: لأن بيانات الأدوار محفوظة داخل JSON في storeData/users،
+      لا تستطيع القواعد الحالية التحقق من دور الكاشير لكل عملية بيع.
+      لذلك يجب اعتبار قواعد الكتابة التشغيلية أدناه مؤقتة إلى حين ترحيل
+      البيانات إلى مستندات مستقلة أو نقل عملية البيع إلى طبقة موثوقة.
+    */
+    match /storeData/{docId} {
+      allow read: if signedIn()
+        && docId in [
+          'products', 'sales', 'moves', 'categories', 'suppliers',
+          'parked', 'invoiceCounter'
+        ];
+
+      allow create, update: if signedIn()
+        && docId in [
+          'products', 'sales', 'moves', 'categories', 'suppliers',
+          'parked', 'invoiceCounter'
+        ];
+
+      allow delete: if false;
+
+      allow read, create, update: if isAdmin() && docId == 'settings';
+      allow read, create, update: if isAdmin() && docId == 'expenses';
+      allow read: if signedIn() && docId == 'users';
+      allow create, update: if isAdmin() && docId == 'users';
+      allow read, create, update: if isAdmin() && docId == 'lastAutoBackupAt';
+    }
+
+    match /auditLog/{entryId} {
+      allow read: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.byUserId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /backups/{backupId} {
+      allow read, create, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
