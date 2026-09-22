@@ -1,0 +1,55 @@
+# ترحيل storeData إلى Collections
+
+أضيفت أداة `scripts/migrate-store-data.cjs` لترحيل البيانات القديمة من `storeData/{key}` إلى `stores/main/{collection}/{id}` دون حذف المصدر القديم.
+
+## المتطلبات
+
+ثبت Firebase Admin SDK خارج بيئة المتصفح:
+
+```bash
+npm install firebase-admin
+```
+
+ثم جهز حساب خدمة بصلاحية Firestore مناسبة، ولا تضع ملفه في Git:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/secure/path/service-account.json"
+export FIREBASE_PROJECT_ID="story-market-35565"
+export FIREBASE_STORE_ID="main"
+```
+
+## الوضع الافتراضي الآمن
+
+الأمر التالي يقرأ البيانات ويتحقق منها ويكتب ملخصًا ونسخة محلية في `migration-artifacts/`، لكنه لا يكتب أي Collection جديدة:
+
+```bash
+node scripts/migrate-store-data.cjs
+```
+
+راجع الملفات التالية قبل التطبيق:
+
+```text
+migration-artifacts/migration-summary.json
+migration-artifacts/legacy-snapshot.json
+```
+
+## التطبيق الفعلي
+
+لا يبدأ التطبيق إلا بوجود العلامتين معًا:
+
+```bash
+ALLOW_PRODUCTION_MIGRATION=YES \
+node scripts/migrate-store-data.cjs --apply
+```
+
+الأداة قابلة لإعادة التشغيل، وتمنع إعادة تطبيق نفس النسخة بعد وجود marker مكتمل في:
+
+```text
+stores/main/_migrations/legacy-store-data-v1
+```
+
+لا تحذف `storeData` بعد الترحيل. يجب تعديل التطبيق واختبار القراءة والبيع والاسترجاع والتزامن قبل تعطيل المصدر القديم.
+
+## حالة التنفيذ
+
+تم تجهيز الأداة والتوثيق فقط. لم تُقرأ بيانات Firebase ولم تُكتب Collections ولم تُنفذ عملية إنتاج؛ لا توجد بيانات اعتماد Firebase Admin في مساحة العمل، كما أن التطبيق الحالي يحتاج إلى طبقة قراءة مزدوجة قبل تحويل الكتابة بالكامل إلى الهيكل الجديد.

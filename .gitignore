@@ -1,0 +1,6 @@
+migration-artifacts/
+service-account*.json
+*.service-account.json
+.env
+.env.*
+node_modules/
