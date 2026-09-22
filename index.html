@@ -154,6 +154,30 @@
     header.topbar{min-height:70px;}
     .card{border-radius:14px;}
   }
+  .report-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px;padding:20px 22px;background:linear-gradient(135deg,#102a43 0%,#174f67 58%,#117a73 100%);color:#fff;border:0;overflow:hidden;position:relative;}
+  .report-hero::after{content:'';position:absolute;left:-20px;bottom:-52px;width:180px;height:120px;border:1px solid rgba(232,199,118,.25);border-radius:50%;transform:rotate(-18deg);}
+  .report-eyebrow{font-size:11px;color:rgba(255,255,255,.68);letter-spacing:.5px;margin-bottom:4px;}
+  .report-title{font-size:21px;font-weight:900;letter-spacing:-.3px;margin-bottom:3px;}
+  .report-hero .muted{color:rgba(255,255,255,.68);font-size:12px;}
+  .report-health{position:relative;z-index:1;white-space:nowrap;padding:8px 12px;border:1px solid rgba(232,199,118,.45);border-radius:999px;background:rgba(255,255,255,.10);color:#f5d98f;font-size:12px;font-weight:800;}
+  .dashboard-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px;margin-bottom:12px;}
+  .insight-card{background:rgba(255,255,255,.9);border:1px solid #dfe7ec;border-radius:16px;padding:16px;box-shadow:0 8px 22px rgba(12,41,64,.05);}
+  .insight-card .insight-title{font-size:13px;font-weight:900;color:#173b4f;margin-bottom:12px;}
+  .insight-kpi{font-size:24px;font-weight:900;color:#0c2940;letter-spacing:-.5px;}
+  .insight-caption{font-size:11px;color:#8493a0;margin-top:3px;}
+  .trend-bars{height:86px;display:flex;align-items:end;gap:6px;margin-top:8px;padding-top:8px;border-bottom:1px solid #e7edf0;}
+  .trend-bar{flex:1;min-width:8px;border-radius:6px 6px 0 0;background:linear-gradient(180deg,#c49a52,#117a73);opacity:.9;position:relative;}
+  .trend-bar span{position:absolute;top:100%;right:50%;transform:translateX(50%);font-size:9px;color:#8b98a2;margin-top:5px;white-space:nowrap;}
+  .pay-list{display:grid;gap:8px;}
+  .pay-row{display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:8px;font-size:12px;}
+  .pay-track{height:7px;background:#edf2f4;border-radius:99px;overflow:hidden;}
+  .pay-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#117a73,#4b9f96);}
+  @media (max-width:759px){
+    .report-hero{padding:16px;align-items:flex-start;}
+    .report-title{font-size:18px;}
+    .report-health{font-size:11px;padding:7px 9px;}
+    .dashboard-grid{grid-template-columns:1fr;}
+  }
   #splash{
     position:fixed; inset:0; background:var(--primary-dark); color:#fff;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; z-index:100;
@@ -590,6 +614,14 @@
 
     <!-- ===== REPORTS VIEW ===== -->
     <section class="view" id="view-reports">
+      <div class="report-hero card">
+        <div>
+          <div class="report-eyebrow">لوحة الإدارة · الأداء التشغيلي</div>
+          <div class="report-title">نظرة واضحة على المتجر</div>
+          <div class="muted" id="reportPeriodLabel">ملخص الفترة الحالية</div>
+        </div>
+        <div class="report-health" id="reportHealthBadge">الأداء مستقر</div>
+      </div>
       <div class="chips" id="rangeChips">
         <div class="chip active" data-range="today">اليوم</div>
         <div class="chip" data-range="week">آخر 7 أيام</div>
@@ -597,6 +629,7 @@
         <div class="chip" data-range="all">الكل</div>
       </div>
       <div class="stat-grid" id="statGrid"></div>
+      <div class="dashboard-grid" id="dashboardInsights"></div>
       <div class="card" style="margin-bottom:10px;">
         <div class="h2">الأكثر مبيعًا</div>
         <div id="topProducts"></div>
@@ -2116,16 +2149,19 @@ function rangeStart(){
   if(currentRange === 'month'){ return Date.now() - 30*24*3600*1000; }
   return 0;
 }
+function reportRangeLabel(){
+  return ({ today:'اليوم', week:'آخر 7 أيام', month:'آخر 30 يومًا', all:'كل الفترات' })[currentRange] || 'الفترة الحالية';
+}
 function renderReports(){
   const start = rangeStart();
-  const sales = state.sales.filter(s => s.date >= start);
+  const sales = state.sales.filter(s => Number(s.date || 0) >= start);
   const activeSales = sales.filter(s => !s.returned);
-  const revenue = activeSales.reduce((s,x)=>s+x.total,0);
+  const revenue = activeSales.reduce((s,x)=>s+Number(x.total || 0),0);
   const profit = activeSales.reduce((s,x)=> {
-    const itemsProfit = x.items.reduce((s2,i)=> s2 + (i.price-i.buyPrice)*i.qty - (i.discount||0), 0);
-    return s + itemsProfit - (x.discount||0);
+    const itemsProfit = (Array.isArray(x.items) ? x.items : []).reduce((s2,i)=> s2 + (Number(i.price || i.unitPrice || 0)-Number(i.buyPrice || 0))*Number(i.qty || 0) - Number(i.discount || i.lineDiscount || 0), 0);
+    return s + itemsProfit - Number(x.discount || 0);
   }, 0);
-  const periodExpenses = (state.expenses||[]).filter(ex => ex.date >= start).reduce((s,e)=>s+(e.amount||0),0);
+  const periodExpenses = (state.expenses||[]).filter(ex => Number(ex.date || 0) >= start).reduce((s,e)=>s+Number(e.amount || 0),0);
   const netProfit = profit - periodExpenses;
   document.getElementById('statGrid').innerHTML = `
     <div class="stat-box"><div class="v num">${activeSales.length}</div><div class="l">عدد الفواتير</div></div>
@@ -2134,6 +2170,42 @@ function renderReports(){
     <div class="stat-box"><div class="v num">${money(periodExpenses)}</div><div class="l">المصروفات</div></div>
     <div class="stat-box"><div class="v num">${money(netProfit)}</div><div class="l">صافي الربح</div></div>
     <div class="stat-box"><div class="v num">${activeProducts().length}</div><div class="l">عدد المنتجات</div></div>
+  `;
+  const periodLabel = document.getElementById('reportPeriodLabel');
+  if(periodLabel) periodLabel.textContent = `ملخص ${reportRangeLabel()} · آخر تحديث ${fmtDateShort(Date.now())}`;
+  const lowCount = activeProducts().filter(p => p.qty <= p.minQty).length;
+  const averageTicket = activeSales.length ? revenue / activeSales.length : 0;
+  const payments = ['نقدي','بطاقة','محفظة'].map(method => ({
+    method,
+    total: activeSales.filter(s => s.paymentMethod === method).reduce((sum, s) => sum + Number(s.total || 0), 0)
+  }));
+  const maxPayment = Math.max(1, ...payments.map(item => item.total));
+  const now = new Date();
+  const trendDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(now);
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - (6 - index));
+    const next = day.getTime() + 24 * 3600 * 1000;
+    const total = activeSales.filter(s => s.date >= day.getTime() && s.date < next).reduce((sum, s) => sum + Number(s.total || 0), 0);
+    return { label: day.toLocaleDateString('ar-EG', { weekday:'short' }), total };
+  });
+  const maxTrend = Math.max(1, ...trendDays.map(day => day.total));
+  const health = lowCount > 0 ? 'تحتاج متابعة المخزون' : (activeSales.length ? 'الأداء مستقر' : 'بانتظار أول عملية');
+  const healthEl = document.getElementById('reportHealthBadge');
+  if(healthEl) healthEl.textContent = health;
+  const insights = document.getElementById('dashboardInsights');
+  if(insights) insights.innerHTML = `
+    <div class="insight-card">
+      <div class="insight-title">اتجاه المبيعات · آخر 7 أيام</div>
+      <div class="row between"><div><div class="insight-kpi num">${money(revenue)}</div><div class="insight-caption">إجمالي الفترة المحددة</div></div><div class="pill pill-ok">متوسط الفاتورة ${money(averageTicket)}</div></div>
+      <div class="trend-bars">${trendDays.map(day => `<div class="trend-bar" style="height:${Math.max(8, Math.round(day.total / maxTrend * 100))}%;" title="${esc(day.label)}: ${money(day.total)}"><span>${esc(day.label)}</span></div>`).join('')}</div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">توزيع طرق الدفع</div>
+      <div class="pay-list">${payments.map(item => `<div class="pay-row"><span>${esc(item.method)}</span><div class="pay-track"><div class="pay-fill" style="width:${Math.round(item.total / maxPayment * 100)}%"></div></div><strong class="num">${money(item.total)}</strong></div>`).join('')}</div>
+      <hr class="line">
+      <div class="row between"><span class="muted">تنبيهات المخزون</span><strong class="num ${lowCount ? 'text-danger' : ''}">${lowCount}</strong></div>
+    </div>
   `;
   renderExpensesList();
   const soldMap = {};
