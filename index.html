@@ -619,6 +619,7 @@
 
 <script src="src/shared-utils.js"></script>
 <script src="src/sale-calculator.js"></script>
+<script src="src/store-repository.js"></script>
 <script>
 (function(){
 
@@ -666,6 +667,7 @@ let db = null;
 let auth = null;
 let secondaryAuth = null;
 let functionsRef = null;
+let firestoreRepository = null;
 try{
   if(typeof firebase !== 'undefined'){
     firebase.initializeApp(firebaseConfig);
@@ -685,6 +687,7 @@ try{
     secondaryAuth = secondaryApp.auth();
   }
 }catch(e){ db = null; }
+if(db) firestoreRepository = MatgarStore.createStoreRepository(db);
 
 // بيحول اسم المستخدم لصيغة إيميل صالحة لـ Firebase Auth (مش محتاج يكون إيميل حقيقي)
 function usernameToEmail(username){
@@ -703,12 +706,10 @@ function findStoreUser(username){
 }
 
 async function fsGet(key){
-  const doc = await db.collection('storeData').doc(key).get();
-  return doc.exists ? doc.data().value : null;
+  return firestoreRepository.get(key);
 }
 async function fsSet(key, value){
-  await db.collection('storeData').doc(key).set({ value, updatedAt: Date.now() });
-  return true;
+  return firestoreRepository.set(key, value);
 }
 
 /* ---- IndexedDB fallback — used automatically when Firebase/Claude storage aren't reachable ---- */
@@ -830,9 +831,8 @@ function startRealtimeSync(){
   if(!db) return;
   stopRealtimeSync();
   Object.entries(KEYS).forEach(([stateKey, docKey]) => {
-    const unsub = db.collection('storeData').doc(docKey).onSnapshot(snap => {
-      if(!snap.exists || !currentUser) return;
-      const raw = snap.data().value;
+    const unsub = firestoreRepository.subscribe(docKey, raw => {
+      if(!currentUser) return;
       if(raw == null) return;
       let parsed;
       try{ parsed = JSON.parse(raw); }catch(e){ return; }
