@@ -617,6 +617,8 @@
   <div class="modal" id="modalBody"></div>
 </div>
 
+<script src="src/shared-utils.js"></script>
+<script src="src/sale-calculator.js"></script>
 <script>
 (function(){
 
@@ -903,26 +905,12 @@ function seedProducts(){
 
 /* ---------------- helpers ---------------- */
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
-function money(n){ return (Math.round((n||0)*100)/100).toFixed(2) + ' ' + (state.settings.currency || 'ج.م'); }
-function daysToExpiry(dateStr){
-  if(!dateStr) return null;
-  const ms = new Date(dateStr).setHours(0,0,0,0) - new Date().setHours(0,0,0,0);
-  return Math.round(ms / 86400000);
-}
-function todayStr(){
-  const d = new Date();
-  return d.toLocaleDateString('ar-EG', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-}
-function fmtDateShort(ts){
-  const d = new Date(ts);
-  return d.toLocaleDateString('ar-EG', {month:'2-digit', day:'2-digit'}) + ' ' + d.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
-}
-// تعقيم أي نص قبل حقنه في HTML — خط الدفاع الأساسي ضد هجمات XSS المخزّنة
-// (لو حد كتب اسم منتج/مستخدم فيه وسوم HTML، بتتحول لنص عادي بدل ما تتنفذ كـ HTML فعلي)
-function esc(str){
-  if(str === null || str === undefined) return '';
-  return String(str).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
-}
+    // واجهات توافق مؤقتة: المنطق المشترك موجود الآن في src/shared-utils.js.
+    function money(n){ return MatgarUtils.formatMoney(n, state.settings.currency || 'ج.م'); }
+    function daysToExpiry(dateStr){ return MatgarUtils.daysToExpiry(dateStr); }
+    function todayStr(){ return MatgarUtils.todayArabic(); }
+    function fmtDateShort(ts){ return MatgarUtils.formatDateShort(ts); }
+    function esc(str){ return MatgarUtils.escapeHtml(str); }
 function findProduct(id){ return state.products.find(p => p.id === id); }
 // المنتجات الفعّالة فقط (مش المحذوفة) — دي اللي المفروض تظهر في البيع والتقارير والبحث اليومي
 function activeProducts(){ return state.products.filter(p => !p.deleted); }
@@ -937,55 +925,9 @@ function debounce(fn, ms){
 }
 
 /* ---------------- bulk CSV import ---------------- */
-const CSV_HEADER_MAP = {
-  'name':'name', 'اسم المنتج':'name', 'الاسم':'name',
-  'barcode':'barcode', 'باركود':'barcode', 'الباركود':'barcode', 'كود':'barcode',
-  'category':'category', 'فئة':'category', 'الفئة':'category',
-  'buyprice':'buyPrice', 'buy price':'buyPrice', 'سعر الشراء':'buyPrice',
-  'sellprice':'sellPrice', 'sell price':'sellPrice', 'سعر البيع':'sellPrice',
-  'qty':'qty', 'quantity':'qty', 'الكمية':'qty',
-  'minqty':'minQty', 'min qty':'minQty', 'الحد الادنى':'minQty', 'حد التنبيه':'minQty',
-  'unit':'unit', 'الوحدة':'unit'
-};
-function mapCsvHeader(h){
-  const raw = h.trim();
-  return CSV_HEADER_MAP[raw.toLowerCase()] || CSV_HEADER_MAP[raw] || null;
-}
-function csvCells(line, delimiter){
-  const cells = []; let cell = ''; let quoted = false;
-  for(let i=0;i<line.length;i++){
-    const ch = line[i];
-    if(ch === '"' && line[i+1] === '"'){ cell += '"'; i++; continue; }
-    if(ch === '"'){ quoted = !quoted; continue; }
-    if(ch === delimiter && !quoted){ cells.push(cell.trim()); cell = ''; continue; }
-    cell += ch;
-  }
-  cells.push(cell.trim()); return cells;
-}
-function parseCSV(text){
-  const clean = String(text || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
-  let lines = clean.split('\n').filter(l => l.trim().length);
-  if(lines[0] && /^sep\s*=\s*[,;\t]$/i.test(lines[0].trim())) lines.shift();
-  if(lines.length < 2) return [];
-  const first = lines[0];
-  const delimiters = [',',';','\t'];
-  const delimiter = delimiters.sort((a,b) => csvCells(first,b).length - csvCells(first,a).length)[0];
-  const headers = csvCells(first, delimiter).map(mapCsvHeader);
-  const rows = [];
-  for(let i=1;i<lines.length;i++){
-    const cells = csvCells(lines[i], delimiter);
-    const obj = {};
-    headers.forEach((key, idx) => { if(key) obj[key] = (cells[idx]||'').trim(); });
-    if(obj.name) rows.push(obj);
-  }
-  return rows;
-}
-function importNumber(value, fallback=0){
-  let s = String(value ?? '').trim().replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
-  if(s.includes(',') && !s.includes('.')) s = s.replace(',', '.');
-  s = s.replace(/\s/g, '').replace(/,/g, '');
-  const n = parseFloat(s); return Number.isFinite(n) ? n : fallback;
-}
+    // واجهات توافق مؤقتة: منطق CSV والأرقام معزول في src/shared-utils.js.
+    function parseCSV(text){ return MatgarUtils.parseCSV(text); }
+    function importNumber(value, fallback=0){ return MatgarUtils.importNumber(value, fallback); }
 function downloadCsvTemplate(){
   const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const csv = ['sep=,','name,barcode,category,buyPrice,sellPrice,qty,minQty,unit',
@@ -1465,17 +1407,19 @@ function renderPayModal(){
     </div>
     <button class="btn btn-primary btn-block" id="confirmSaleBtn">تأكيد البيع وطباعة الفاتورة</button>
   `);
-  function recalc(){
-    const discount = Math.min(parseFloat(document.getElementById('discountInput').value) || 0, subtotal);
-    const taxable = subtotal - discount;
-    const tax = taxable * ((state.settings.taxRate||0)/100);
-    const total = taxable + tax;
-    document.getElementById('sumDiscount').textContent = money(discount);
-    document.getElementById('sumTax').textContent = money(tax);
-    document.getElementById('sumTotal').textContent = money(total);
-    const received = parseFloat(document.getElementById('cashReceived').value) || 0;
-    document.getElementById('changeDue').value = money(received - total);
-    return { discount, tax, total };
+      function recalc(){
+        const payment = MatgarSales.calculateSale({
+          lines: cart,
+          discount: document.getElementById('discountInput').value,
+          taxRate: state.settings.taxRate || 0,
+          paymentMethod: document.getElementById('paymentMethod').value,
+          received: document.getElementById('cashReceived').value
+        });
+        document.getElementById('sumDiscount').textContent = money(payment.discount);
+        document.getElementById('sumTax').textContent = money(payment.tax);
+        document.getElementById('sumTotal').textContent = money(payment.total);
+        document.getElementById('changeDue').value = money(payment.change);
+        return payment;
   }
   document.getElementById('discountInput').addEventListener('input', recalc);
   document.getElementById('cashReceived').addEventListener('input', recalc);
@@ -1504,14 +1448,18 @@ async function confirmSale(){
   const confirmBtn = document.getElementById('confirmSaleBtn');
   if(confirmBtn){ confirmBtn.disabled = true; confirmBtn.textContent = 'جاري الحفظ...'; }
   try{
-    const subtotal = cartTotal();
-    const discount = Math.min(parseFloat(document.getElementById('discountInput').value) || 0, subtotal);
-    const taxable = subtotal - discount;
-    const tax = taxable * ((state.settings.taxRate||0)/100);
-    const total = taxable + tax;
     const paymentMethod = document.getElementById('paymentMethod').value;
     const received = parseFloat(document.getElementById('cashReceived').value) || 0;
     const cartLines = cart.map(c => ({...c}));
+    const payment = MatgarSales.calculateSale({
+      lines: cartLines,
+      discount: document.getElementById('discountInput').value,
+      taxRate: state.settings.taxRate || 0,
+      paymentMethod,
+      received
+    });
+    MatgarSales.validatePayment(payment);
+    const { subtotal, discount, tax, total, change } = payment;
     let sale;
 
     if(db && storageMode === 'firebase'){
@@ -1549,7 +1497,7 @@ async function confirmSale(){
         sale = {
           id: uid(), invoiceNo, date: Date.now(),
           items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-          subtotal, discount, tax, total, paymentMethod, received, change: received - total,
+          subtotal, discount, tax, total, paymentMethod, received, change,
           cashierName: currentUser ? currentUser.name : '', returned:false
         };
         cartLines.forEach(c => {
@@ -1583,7 +1531,7 @@ async function confirmSale(){
       sale = {
         id: uid(), invoiceNo, date: Date.now(),
         items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-        subtotal, discount, tax, total, paymentMethod, received, change: received - total,
+        subtotal, discount, tax, total, paymentMethod, received, change,
         cashierName: currentUser ? currentUser.name : '', returned:false
       };
       cartLines.forEach(c => {
@@ -1600,8 +1548,10 @@ async function confirmSale(){
     showReceipt(sale);
     cart = [];
     renderCart(); renderPosList(); renderStockView(); renderReports();
-  }catch(e){
-    if(e && e.message === 'insufficient-stock' && Array.isArray(e.insufficient)){
+      }catch(e){
+        if(e && e.message === 'insufficient-payment'){
+          toast('المبلغ المستلم أقل من إجمالي الفاتورة');
+        } else if(e && e.message === 'insufficient-stock' && Array.isArray(e.insufficient)){
       const lines = e.insufficient.map(x => `${x.name} (متاح: ${x.available}، مطلوب: ${x.requested})`);
       openModal(`
         <div class="modal-title">الكمية المتاحة تغيّرت ⚠️</div>
