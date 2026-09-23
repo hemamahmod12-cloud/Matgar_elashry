@@ -503,6 +503,18 @@
   .checkout-bar{background:rgba(255,255,255,.94);border:1px solid #dce6eb;box-shadow:0 -12px 30px rgba(12,41,64,.12);backdrop-filter:blur(12px)}.checkout-bar .amt{color:#117a73;font-weight:900}
   @media (min-width:760px) and (hover:hover){main{padding-left:30px;padding-right:30px}.card{padding:20px}.login-card{min-width:410px}.prod-item{min-height:78px}nav.tabbar{border-left:1px solid rgba(255,255,255,.12)}}
   @media (max-width:759px){header.topbar{padding:13px 14px}header.topbar::before{display:none}main{padding:15px 11px 102px}.card{padding:14px}.login-card{margin:0 13px;padding:21px}.login-hero{padding-top:7vh}.login-screen::before{height:43vh}.topbar-logo{width:44px;height:44px}}
+  .offline-status-bar{width:min(100% - 24px,1180px);min-height:46px;margin:10px auto 0;padding:8px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#17352f;background:#fff;border:1px solid #dfe8e3;border-radius:14px;box-shadow:0 5px 18px rgba(10,79,67,.07);font-family:inherit}
+  .connection-state,.pending-invoices{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:700}
+  .connection-dot{width:10px;height:10px;flex:0 0 10px;display:inline-block;border-radius:50%;background:#f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,.14)}
+  .offline-status-bar.is-online .connection-dot{background:#16a34a;box-shadow:0 0 0 4px rgba(22,163,74,.14)}
+  .offline-status-bar.is-offline .connection-dot{background:#dc2626;box-shadow:0 0 0 4px rgba(220,38,38,.14)}
+  .offline-status-bar.is-offline{color:#7f1d1d;background:#fff8f7;border-color:#fecaca}
+  .offline-status-separator{width:1px;height:22px;background:#e5e7eb}
+  .pending-invoices{padding:5px 9px;color:#0A4F43;background:transparent;border:0;border-radius:8px;cursor:pointer;font-family:inherit}
+  .pending-invoices:hover,.pending-invoices:focus-visible{background:#e8f3ef;outline:none}
+  .pending-invoices strong{min-width:24px;height:24px;padding:2px 6px;display:inline-grid;place-items:center;color:#fff;background:#d97706;border-radius:999px;font-size:.8rem}
+  .last-sync-text{margin-inline-start:auto;color:#6b7280;font-size:.76rem}
+  @media(max-width:600px){.offline-status-bar{gap:8px;padding:8px 10px}.offline-status-separator{display:none}.last-sync-text{width:100%;margin-inline-start:0}}
 </style>
 </head>
 <body>
@@ -556,6 +568,15 @@
     </div>
     <button class="gear" id="settingsBtn">⚙</button>
   </header>
+
+  <section id="offlineStatusBar" class="offline-status-bar" role="status" aria-live="polite" dir="rtl">
+    <div class="connection-state"><span class="connection-dot" aria-hidden="true"></span><span id="connectionText">جارٍ فحص الاتصال...</span></div>
+    <div class="offline-status-separator" aria-hidden="true"></div>
+    <button id="pendingInvoicesButton" class="pending-invoices" type="button" title="عرض الفواتير المعلقة">
+      <span aria-hidden="true">🧾</span><span>فواتير معلقة</span><strong id="pendingInvoicesCount">0</strong>
+    </button>
+    <span id="lastSyncText" class="last-sync-text">لم تتم المزامنة بعد</span>
+  </section>
 
   <main>
 
@@ -682,6 +703,7 @@
 <script src="src/sale-calculator.js"></script>
 <script src="src/store-repository.js"></script>
 <script src="src/collections-repository.js"></script>
+<script src="src/offline-status.js"></script>
 <script>
 (function(){
 
@@ -690,6 +712,7 @@
 // كل البيانات تظل داخل storeData/{key} كما هي في Firebase الحالي.
 const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'categories', settings:'settings', users:'users', suppliers:'suppliers', parked:'parked', expenses:'expenses' };
 let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, users: [], suppliers: [], parked: [], expenses: [] };
+window.MatgarAppState = state;
 // يتحول إلى true فقط بعد اكتمال الترحيل واختبار Cloud Functions والـ Collections الجديدة.
 const COLLECTIONS_BACKEND_ENABLED = false;
 let storageOK = true;
@@ -1296,12 +1319,14 @@ document.getElementById('parkedSection').addEventListener('click', async e => {
     cart = order.items.map(i => ({...i}));
     state.parked = state.parked.filter(o => o.id !== id);
     await save('parked');
+    window.dispatchEvent(new CustomEvent('parked-invoices-changed'));
     renderParkedSection(); renderCart();
   }
   if(drop){
     if(!confirm('حذف هذه الفاتورة المعلّقة نهائيًا؟')) return;
     state.parked = state.parked.filter(o => o.id !== drop.getAttribute('data-dropparked'));
     await save('parked');
+    window.dispatchEvent(new CustomEvent('parked-invoices-changed'));
     renderParkedSection();
   }
 });
@@ -1311,6 +1336,7 @@ document.getElementById('holdBtn').addEventListener('click', async () => {
   if(name === null) return;
   state.parked.push({ id: uid(), date: Date.now(), name: name.trim() || 'فاتورة معلّقة', items: cart.map(c => ({...c})) });
   await save('parked');
+  window.dispatchEvent(new CustomEvent('parked-invoices-changed'));
   cart = [];
   renderCart(); renderParkedSection();
   toast('تم تعليق الفاتورة');

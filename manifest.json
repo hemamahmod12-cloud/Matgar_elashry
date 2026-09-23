@@ -1,15 +1,18 @@
 {
+  "id": "./",
   "name": "متجر العشري",
   "short_name": "متجر العشري",
-  "description": "نظام كاشير ومخازن متكامل",
+  "description": "نظام كاشير ومخازن متكامل يعمل مع الاتصال وبدونه",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait",
   "background_color": "#F6F4EE",
   "theme_color": "#0A4F43",
   "dir": "rtl",
   "lang": "ar",
+  "prefer_related_applications": false,
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
