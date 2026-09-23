@@ -3182,6 +3182,25 @@ function updateBranding(){
   });
   document.title = name;
 }
+async function restoreOfflineSession(firebaseUser){
+  if(!firebaseUser || navigator.onLine || currentUser) return false;
+  await MatgarOffline.setOwner(firebaseUser.uid);
+  let users = state.users;
+  if(!users.length){
+    const rawUsers = await MatgarOffline.getSnapshot('users').catch(() => null);
+    if(rawUsers){
+      try{ users = JSON.parse(rawUsers); state.users = users; }catch(_e){}
+    }
+  }
+  const user = users.find(item => item.id === firebaseUser.uid && item.active !== false);
+  if(!user) return false;
+  currentUser = user;
+  await loadAll();
+  showApp();
+  toast('تم استرجاع الجلسة من الذاكرة المحلية — وضع بدون إنترنت');
+  return true;
+}
+
 function renderAll(){
   updateBranding();
   renderPosChips(); renderPosList(); renderCart(); renderParkedSection();
@@ -3194,7 +3213,9 @@ function renderAll(){
   await loadAll();
   updateBranding();
   document.getElementById('splash').style.display = 'none';
-  showLoginScreen();
+  if(auth) auth.onAuthStateChanged(user => { restoreOfflineSession(user).catch(error => console.warn('تعذر استرجاع الجلسة Offline:', error)); });
+  const restoredOfflineSession = await restoreOfflineSession(auth && auth.currentUser);
+  if(!restoredOfflineSession) showLoginScreen();
   if(!storageOK) toast('تنبيه: المتصفح ده مش بيدعم الحفظ الدائم، البيانات هتُحفظ لهذه الجلسة فقط');
 })();
 
