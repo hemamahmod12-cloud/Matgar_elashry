@@ -242,6 +242,22 @@
   }
   header.topbar .gear:active{ background:rgba(255,255,255,.22); }
 
+  .connection-status{display:flex;align-items:center;gap:7px;min-width:0;margin-inline:12px;flex:1;max-width:420px;color:#fff;font-size:11px;line-height:1.2;}
+  .connection-status .status-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#59d68c;box-shadow:0 0 0 3px rgba(89,214,140,.15);}
+  .connection-status .status-dot.offline{background:#f4c45e;box-shadow:0 0 0 3px rgba(244,196,94,.15);}
+  .connection-status .status-dot.syncing{background:#8bd9ff;animation:connectionPulse 1s ease-in-out infinite;}
+  .connection-status .status-dot.error{background:#ff8b8b;box-shadow:0 0 0 3px rgba(255,139,139,.15);}
+  .connection-status .status-copy{min-width:0;overflow:hidden;}
+  .connection-status .status-label{display:block;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .connection-status .status-subline{display:block;max-width:205px;margin-top:2px;color:rgba(255,255,255,.68);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .connection-status .pending{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;padding:5px 7px;border:1px solid rgba(255,255,255,.17);border-radius:9px;background:rgba(255,255,255,.11);white-space:nowrap;}
+  .connection-status .pending strong{display:grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border-radius:6px;background:#f5d486;color:#0b2238;font-size:10px;}
+  .connection-status .sync-btn{flex:0 0 auto;border:0;border-radius:8px;padding:6px 8px;background:#fff;color:#0b2238;font:inherit;font-size:10px;font-weight:900;cursor:pointer;}
+  .connection-status .sync-btn:disabled{opacity:.42;cursor:not-allowed;}
+  @keyframes connectionPulse{50%{opacity:.35;transform:scale(.8)}}
+  @media (max-width:560px){.connection-status{margin-inline:7px;gap:5px}.connection-status .status-subline{display:none}.connection-status .sync-btn{font-size:9px;padding:6px}.connection-status .pending{font-size:9px;padding:4px 5px}}
+
+
   main{ flex:1; padding:12px 12px 16px; }
   .view{ display:none; }
   .view.active{ display:block; }
@@ -554,6 +570,12 @@
         <div class="date" id="todayDate"></div>
       </div>
     </div>
+    <div class="connection-status" id="connectionStatus" role="status" aria-live="polite" aria-atomic="true">
+      <span class="status-dot" id="connectionStatusDot" aria-hidden="true"></span>
+      <span class="status-copy"><span class="status-label" id="connectionStatusLabel">جارٍ التحقق من الاتصال</span><span class="status-subline" id="connectionStatusSubline">...</span></span>
+      <span class="pending" title="عدد الفواتير المحفوظة محليًا"><span>معلقة</span><strong id="pendingInvoicesCount">0</strong></span>
+      <button class="sync-btn" id="connectionSyncBtn" type="button">مزامنة</button>
+    </div>
     <button class="gear" id="settingsBtn">⚙</button>
   </header>
 
@@ -682,6 +704,7 @@
 <script src="src/sale-calculator.js"></script>
 <script src="src/store-repository.js"></script>
 <script src="src/collections-repository.js"></script>
+<script src="src/offline-queue.js"></script>
 <script>
 (function(){
 
@@ -692,6 +715,26 @@ const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'ca
 let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, users: [], suppliers: [], parked: [], expenses: [] };
 // يتحول إلى true فقط بعد اكتمال الترحيل واختبار Cloud Functions والـ Collections الجديدة.
 const COLLECTIONS_BACKEND_ENABLED = false;
+
+function renderConnectionStatus(status){
+  const dot = document.getElementById('connectionStatusDot');
+  const label = document.getElementById('connectionStatusLabel');
+  const subline = document.getElementById('connectionStatusSubline');
+  const count = document.getElementById('pendingInvoicesCount');
+  const syncBtn = document.getElementById('connectionSyncBtn');
+  if(!dot || !label || !subline || !count || !syncBtn) return;
+  dot.className = 'status-dot';
+  count.textContent = String(status.pendingCount || 0);
+  syncBtn.disabled = !status.online || !status.pendingCount || status.syncing || status.blocked;
+  if(status.error){ dot.classList.add('error'); label.textContent = 'تحتاج مراجعة'; subline.textContent = status.error; }
+  else if(status.syncing){ dot.classList.add('syncing'); label.textContent = 'جارٍ المزامنة'; subline.textContent = 'إرسال الفواتير المعلقة بأمان'; }
+  else if(!status.online){ dot.classList.add('offline'); label.textContent = 'بدون إنترنت'; subline.textContent = status.pendingCount ? 'البيع مستمر محليًا — ستتم المزامنة لاحقًا' : 'البيانات الجديدة ستُحفظ محليًا'; }
+  else if(status.blocked && status.pendingCount){ dot.classList.add('offline'); label.textContent = 'محفوظ محليًا'; subline.textContent = 'ينتظر تفعيل مسار المزامنة الموثوق'; }
+  else if(status.pendingCount){ label.textContent = 'متصل'; subline.textContent = 'هناك فواتير جاهزة للمزامنة'; }
+  else { label.textContent = 'متصل'; subline.textContent = 'كل البيانات متزامنة مع السحابة'; }
+}
+MatgarOffline.onState(renderConnectionStatus);
+document.getElementById('connectionSyncBtn').addEventListener('click', () => MatgarOffline.syncNow());
 let storageOK = true;
 let storageMode = 'none'; // 'firebase' | 'claude' | 'browser' | 'none'
 let currentUser = null;
@@ -806,6 +849,10 @@ function idbSet(key, value){
 const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
 
 async function storageGet(key){
+  if(MatgarOffline.hasOwner() && !navigator.onLine){
+    const localSnapshot = await MatgarOffline.getSnapshot(key).catch(() => null);
+    if(localSnapshot !== null) return localSnapshot;
+  }
   if(db){
     try{ return await fsGet(key); }
     catch(e){ storageMode = 'firebase-fallback'; console.warn('تعذر قراءة Firebase، سيتم استخدام النسخة المحلية مؤقتًا:', key, e); }
@@ -817,6 +864,9 @@ async function storageGet(key){
   return idbGet(key);
 }
 async function storageSet(key, value){
+  if(MatgarOffline.hasOwner() && !navigator.onLine){
+    return MatgarOffline.setSnapshot(key, value);
+  }
   if(db){
     try{ return await fsSet(key, value); }
     catch(e){
@@ -1539,9 +1589,59 @@ async function confirmSaleViaCollections(payment){
   return MatgarCollections.processSaleRequest(requestId);
 }
 
+async function createOfflineSale(payment, cartLines){
+  const insufficient = [];
+  cartLines.forEach(c => {
+    const product = findProduct(c.productId);
+    const available = product ? (product.qty || 0) : 0;
+    if(available < c.qty) insufficient.push({ name:c.name, available, requested:c.qty });
+  });
+  if(insufficient.length) throw Object.assign(new Error('insufficient-stock'), { insufficient });
+  const localId = 'offline-' + uid();
+  const sale = {
+    id: localId,
+    invoiceNo: 'معلق-' + localId.slice(-6).toUpperCase(),
+    date: Date.now(),
+    items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
+    subtotal: payment.subtotal, discount: payment.discount, tax: payment.tax, total: payment.total,
+    paymentMethod: payment.paymentMethod, received: payment.received, change: payment.change,
+    cashierName: currentUser ? currentUser.name : '', returned:false, offline:true, syncStatus:'pending'
+  };
+  cartLines.forEach(c => {
+    const product = findProduct(c.productId);
+    if(product){
+      product.qty = Math.max(0, product.qty - c.qty);
+      state.moves.unshift({ id:uid(), date:Date.now(), productId:product.id, productName:product.name, type:'out', qty:c.qty, reason:'بيع محلي مؤقت '+sale.invoiceNo, offline:true });
+    }
+  });
+  await MatgarOffline.enqueueSale({
+    cashierId: currentUser.id,
+    cashierName: currentUser.name,
+    clientSaleId: localId,
+    items: cartLines.map(c => ({ productId:c.productId, qty:c.qty, lineDiscount:c.discount || 0 })),
+    subtotal: payment.subtotal, discount: payment.discount, tax: payment.tax, total: payment.total,
+    paymentMethod: payment.paymentMethod, received: payment.received
+  });
+  state.products = [...state.products];
+  state.sales = [sale, ...state.sales];
+  await Promise.all([
+    MatgarOffline.setSnapshot('products', JSON.stringify(state.products)),
+    MatgarOffline.setSnapshot('sales', JSON.stringify(state.sales)),
+    MatgarOffline.setSnapshot('moves', JSON.stringify(state.moves))
+  ]);
+  return sale;
+}
+
+async function syncPendingOfflineSale(item){
+  if(!COLLECTIONS_BACKEND_ENABLED) throw new Error('collections-backend-disabled');
+  const requestId = await MatgarCollections.createSaleRequest(item.payload);
+  return MatgarCollections.processSaleRequest(requestId);
+}
+
 async function confirmSale(){
   if(cart.length === 0 || saleInProgress) return;
-  if(!requireCloudForSensitiveWrite()) return;
+  const offlineMode = !navigator.onLine;
+  if(!offlineMode && !requireCloudForSensitiveWrite()) return;
   saleInProgress = true;
   const confirmBtn = document.getElementById('confirmSaleBtn');
   if(confirmBtn){ confirmBtn.disabled = true; confirmBtn.textContent = 'جاري الحفظ...'; }
@@ -1560,7 +1660,10 @@ async function confirmSale(){
     const { subtotal, discount, tax, total, change } = payment;
     let sale;
 
-    if(COLLECTIONS_BACKEND_ENABLED){
+    if(offlineMode){
+      sale = await createOfflineSale(payment, cartLines);
+      toast('تم حفظ الفاتورة محليًا — ستتم مزامنتها عند عودة الاتصال');
+    } else if(COLLECTIONS_BACKEND_ENABLED){
       const result = await confirmSaleViaCollections(payment);
       sale = {
         id: result.saleId,
@@ -1653,7 +1756,7 @@ async function confirmSale(){
       state.sales.unshift(sale);
       await save('products'); await save('moves'); await save('sales'); await save('settings');
     }
-    logAudit('بيع فاتورة', 'sales', { invoiceNo: sale.invoiceNo, total: sale.total });
+    if(!offlineMode) logAudit('بيع فاتورة', 'sales', { invoiceNo: sale.invoiceNo, total: sale.total });
     showReceipt(sale);
     cart = [];
     renderCart(); renderPosList(); renderStockView(); renderReports();
@@ -2449,6 +2552,7 @@ function showLoginScreen(){
   document.getElementById('app').style.display = 'none';
 }
 function showApp(){
+  MatgarOffline.setSyncHandler(COLLECTIONS_BACKEND_ENABLED ? syncPendingOfflineSale : null);
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   applyRolePermissions();
@@ -2465,6 +2569,8 @@ function logout(reason){
   stopIdleTimer();
   stopRealtimeSync();
   currentUser = null;
+  MatgarOffline.setOwner(null);
+  MatgarOffline.setSyncHandler(null);
   cart = [];
   if(auth){ auth.signOut().catch(()=>{}); }
   showLoginScreen();
@@ -2584,6 +2690,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
     }
     clearAttempts(username);
     currentUser = user;
+    await MatgarOffline.setOwner(currentUser.id);
     await loadAll(); // إعادة تحميل كل بيانات المتجر دلوقتي وإحنا مسجلين دخول فعليًا (بعد ما كانت اتمنعت قبل الدخول)
     currentUser = state.users.find(u => u.id === user.id) || user; // loadAll() بتستبدل state.users، فبنعيد إيجاد نفس المستخدم
     showApp();
@@ -3082,6 +3189,7 @@ function renderAll(){
 }
 
 (async function init(){
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Service Worker غير متاح:', error)); }
   document.getElementById('todayDate').textContent = todayStr();
   await loadAll();
   updateBranding();
