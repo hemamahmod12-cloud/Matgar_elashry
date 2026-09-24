@@ -1664,12 +1664,21 @@ async function confirmSale(options = {}){
   const confirmBtn = document.getElementById('confirmSaleBtn');
   if(confirmBtn){ confirmBtn.disabled = true; confirmBtn.textContent = 'جاري الحفظ...'; }
   try{
-    const paymentMethod = document.getElementById('paymentMethod').value;
-    const received = parseFloat(document.getElementById('cashReceived').value) || 0;
+    const paymentMethodEl = document.getElementById('paymentMethod');
+    const cashReceivedEl = document.getElementById('cashReceived');
+    const discountInputEl = document.getElementById('discountInput');
+    const paymentMethod = fromOfflineQueue
+      ? (options.payload?.paymentMethod || 'نقدي')
+      : (paymentMethodEl?.value || 'نقدي');
+    const received = fromOfflineQueue
+      ? (Number(options.payload?.received) || 0)
+      : (parseFloat(cashReceivedEl?.value) || 0);
     const cartLines = cart.map(c => ({...c}));
     const payment = MatgarSales.calculateSale({
       lines: cartLines,
-      discount: document.getElementById('discountInput').value,
+      discount: fromOfflineQueue
+        ? (Number(options.payload?.discount) || 0)
+        : (discountInputEl?.value || 0),
       taxRate: state.settings.taxRate || 0,
       paymentMethod,
       received
@@ -1843,7 +1852,7 @@ async function syncOfflineSales(manual = false){
         status:'pending', attempts:(operation.attempts || 0) + 1, lastAttemptAt:Date.now(), lastError:null
       });
       try{
-        const sale = await confirmSale({ fromOfflineQueue:true, silent:true });
+        const sale = await confirmSale({ fromOfflineQueue:true, silent:true, payload });
         if(!sale) throw new Error('offline-sale-not-completed');
         await window.MatgarOfflineQueue.remove(operation.clientOperationId);
         synced += 1;
