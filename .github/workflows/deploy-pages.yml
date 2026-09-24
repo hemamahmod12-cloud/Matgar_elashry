@@ -37,3 +37,22 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@latest
+
+      - name: Write temporary service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+
+      - name: Deploy Firestore rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+        run: firebase deploy --only firestore:rules --project story-market-35565 --non-interactive
+
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"

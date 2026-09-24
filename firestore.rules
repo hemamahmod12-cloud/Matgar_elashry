@@ -35,8 +35,10 @@ service cloud.firestore {
 
       allow delete: if false;
 
-      allow read, create, update: if isAdmin() && docId == 'settings';
-      allow read, create, update: if isAdmin() && docId == 'expenses';
+      // القراءة مطلوبة لتحميل حالة المتجر لكل جلسة مسجلة؛ الكتابة الحساسة
+      // تظل محصورة في المدير ذي UID الموثوق.
+      allow read: if signedIn() && docId in ['settings', 'expenses'];
+      allow create, update: if isAdmin() && docId in ['settings', 'expenses'];
       allow read: if signedIn() && docId == 'users';
       allow create, update: if isAdmin() && docId == 'users';
       allow read, create, update: if isAdmin() && docId == 'lastAutoBackupAt';
