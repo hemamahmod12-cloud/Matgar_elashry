@@ -719,6 +719,7 @@ window.MatgarAppState = state;
 const COLLECTIONS_BACKEND_ENABLED = false;
 let storageOK = true;
 let storageMode = 'none'; // 'firebase' | 'claude' | 'browser' | 'none'
+let firebaseReadFailed = false;
 let currentUser = null;
 let realtimeUnsubs = [];      // معالجات إيقاف الاستماع اللحظي لكل مستند
 let saleInProgress = false;   // يمنع الضغط المزدوج على زر تأكيد البيع
@@ -835,7 +836,7 @@ const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage
 async function storageGet(key){
   if(db){
     try{ return await fsGet(key); }
-    catch(e){ storageMode = 'firebase-fallback'; console.warn('تعذر قراءة Firebase، سيتم استخدام النسخة المحلية مؤقتًا:', key, e); }
+    catch(e){ firebaseReadFailed = true; storageMode = 'firebase-fallback'; console.warn('تعذر قراءة Firebase، سيتم استخدام النسخة المحلية مؤقتًا:', key, e); }
   }
   if(hasClaudeStorage){
     const r = await window.storage.get(key).catch(() => null);
@@ -847,6 +848,7 @@ async function storageSet(key, value){
   if(db){
     try{ return await fsSet(key, value); }
     catch(e){
+      firebaseReadFailed = true;
       storageMode = 'firebase-fallback';
       console.error('تعذر حفظ البيانات في Firebase:', key, e);
       if(currentUser) return false;
@@ -876,7 +878,9 @@ function dispatchOfflineQueueChanged(){
 
 async function loadAll(){
   try{
-    const firebaseFallback = storageMode === 'firebase-fallback';
+    // كل استدعاء يبدأ بفحص جديد؛ لا نُبقي تحذيرًا قديمًا إذا عادت القراءة
+    // من Firebase للعمل في محاولة لاحقة.
+    firebaseReadFailed = false;
     const results = await Promise.all(Object.values(KEYS).map(k => storageGet(k).catch(() => null)));
     const [p, s, m, c, st, u, sup, pk, ex] = results;
     state.products   = p  ? JSON.parse(p)  : seedProducts();
@@ -889,7 +893,7 @@ async function loadAll(){
     state.parked       = pk ? JSON.parse(pk) : [];
     state.expenses     = ex ? JSON.parse(ex) : [];
     storageOK = true;
-    storageMode = firebaseFallback ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser'));
+    storageMode = firebaseReadFailed ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser'));
     if(!p) await save('products');
     if(!c) await save('categories');
     if(!st) await save('settings');
@@ -3279,10 +3283,13 @@ function renderAll(){
   renderPosChips(); renderPosList(); renderCart(); renderParkedSection();
   renderProdMgmt(); renderStockView(); renderReports();
 }
-
 (async function init(){
   document.getElementById('todayDate').textContent = todayStr();
-  await loadAll();
+  // لا نقرأ مستندات Firestore المحمية قبل تسجيل الدخول.
+  // القراءة المبكرة كانت تُرجع permission-denied من Rules، فيحوّل التطبيق
+  // الخطأ الطبيعي قبل المصادقة إلى تحذير "الحفظ المحلي مؤقت فقط" ويظل هذا
+  // الوضع عالقًا حتى بعد نجاح تسجيل الدخول.
+  // يتم تحميل بيانات المتجر بعد نجاح Firebase Authentication داخل مسار الدخول.
   updateBranding();
   document.getElementById('splash').style.display = 'none';
   showLoginScreen();
