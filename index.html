@@ -862,7 +862,15 @@ async function loadLocalUsersForLogin(){
 async function storageGet(key){
   if(db){
     try{ return await fsGet(key); }
-    catch(e){ firebaseReadFailed = true; storageMode = 'firebase-fallback'; console.warn('تعذر قراءة Firebase، سيتم استخدام النسخة المحلية مؤقتًا:', key, e); }
+    catch(e){
+      // بعض المستندات الاختيارية (الإعدادات/المصروفات) قد تكون محمية
+      // بقواعد أقدم؛ لا نسمح بفشلها أن يعطّل مزامنة المنتجات والمبيعات.
+      if(!['settings', 'expenses'].includes(key)){
+        firebaseReadFailed = true;
+        storageMode = 'firebase-fallback';
+      }
+      console.warn('تعذر قراءة مستند Firebase:', key, e);
+    }
   }
   if(hasClaudeStorage){
     const r = await window.storage.get(key).catch(() => null);
@@ -919,10 +927,12 @@ async function loadAll(){
     state.parked       = pk ? JSON.parse(pk) : [];
     state.expenses     = ex ? JSON.parse(ex) : [];
     storageOK = true;
+    // القراءة السحابية الأساسية تعمل حتى لو تعذر مستند اختياري.
     storageMode = firebaseReadFailed ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser'));
     if(!p) await save('products');
     if(!c) await save('categories');
-    if(!st) await save('settings');
+    // لا نحاول إنشاء مستند إعدادات محمي بقواعد قديمة؛ الإعداد الافتراضي
+    // المحلي يكفي مؤقتًا ولا يجب أن يوقف مزامنة البيانات التشغيلية.
   }catch(e){
     storageOK = false;
     storageMode = 'none';
