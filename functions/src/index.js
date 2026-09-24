@@ -36,6 +36,42 @@ function assertText(value, message) {
   }
 }
 
+function normalizeUsername(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+// اسم المستخدم محفوظ داخل JSON legacy في مستند واحد، بينما Firebase Auth
+// يحتاج البريد الداخلي للحساب. هذه الدالة لا تفتح قراءة Firestore للزائر؛
+// بل تعيد فقط البريد المرتبط بالاسم من خلال callable موثوق.
+exports.resolveUsername = onCall(async request => {
+  const username = normalizeUsername(request.data?.username);
+  assertText(username, 'اسم المستخدم مطلوب');
+  if (username.length > 80) {
+    throw new HttpsError('invalid-argument', 'اسم المستخدم غير صالح');
+  }
+
+  const snapshot = await db.collection('storeData').doc('users').get();
+  if (!snapshot.exists) {
+    throw new HttpsError('not-found', 'المستخدم غير موجود');
+  }
+
+  let users;
+  try {
+    users = JSON.parse(String(snapshot.data()?.value || '[]'));
+  } catch (_) {
+    throw new HttpsError('data-loss', 'بيانات المستخدمين غير صالحة');
+  }
+  const user = Array.isArray(users)
+    ? users.find(item => normalizeUsername(item?.username) === username)
+    : null;
+  if (!user) throw new HttpsError('not-found', 'المستخدم غير موجود');
+
+  const email = String(user.authEmail || `${username}@matgar-elashry.app`)
+    .trim()
+    .toLowerCase();
+  return { email };
+});
+
 async function assertActiveStaff(uid, storeId) {
   const snapshot = await storeRef(storeId).collection('users').doc(uid).get();
   if (!snapshot.exists || snapshot.data().active !== true) {
