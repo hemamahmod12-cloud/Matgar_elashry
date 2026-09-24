@@ -796,6 +796,13 @@ function rememberAuthEmail(username, email){
   if(!username || !email) return;
   try{ localStorage.setItem(authEmailCacheKey(username), String(email).trim().toLowerCase()); }catch(_e){}
 }
+function loginEmailCandidates(username, knownUser){
+  return [...new Set([
+    knownUser && knownUser.authEmail,
+    cachedAuthEmail(username),
+    usernameToEmail(username)
+  ].filter(Boolean).map(email => String(email).trim().toLowerCase()))];
+}
 // اسم المستخدم هو معرّف الدخول في الواجهة، لذلك توحّد المقارنة بين
 // شاشة الإضافة وشاشة الدخول وبيانات Firestore القديمة.
 function normalizeUsername(username){
@@ -2731,9 +2738,8 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
   const knownUser = hasUsers ? findStoreUser(username) : null;
   // بعد تغيير اسم المستخدم يظل بريد Firebase الداخلي ثابتًا. نستخدم آخر
   // بريد موثق على هذا الجهاز قبل اشتقاق بريد جديد من الاسم.
-  const email = (knownUser && knownUser.authEmail)
-    || cachedAuthEmail(username)
-    || usernameToEmail(username);
+  const emailCandidates = loginEmailCandidates(username, knownUser);
+  const email = emailCandidates[0] || usernameToEmail(username);
 
   // إنشاء أول حساب مدير (أول تشغيل للنظام)
   if(!hasUsers && setupMode){
@@ -2776,12 +2782,21 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
   try{
     if(!auth) throw new Error('no-auth');
     let cred;
+    let authErr = null;
     try{
-      cred = await auth.signInWithEmailAndPassword(email, password);
-    }catch(authErr){
+      for(const candidateEmail of emailCandidates){
+        try{
+          cred = await auth.signInWithEmailAndPassword(candidateEmail, password);
+          break;
+        }catch(candidateErr){
+          authErr = candidateErr;
+        }
+      }
+      if(!cred && authErr) throw authErr;
+    }catch(signInErr){
       const legacyUser = findStoreUser(username);
-      if(legacyUser && legacyUser.password !== simpleHash(password)) throw authErr;
-      if(!legacyUser) throw authErr;
+      if(legacyUser && legacyUser.password !== simpleHash(password)) throw signInErr;
+      if(!legacyUser) throw signInErr;
       cred = await auth.createUserWithEmailAndPassword(email, password);
       legacyUser.id = cred.user.uid;
       delete legacyUser.password;
