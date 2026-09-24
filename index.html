@@ -772,7 +772,7 @@ try{
       console.warn('Offline persistence غير مفعّلة:', err.code);
     });
     auth = firebase.auth();
-    try{ functionsRef = firebase.app().functions('europe-west1'); }catch(e){ try{ functionsRef = firebase.functions(); }catch(_e){ functionsRef = null; } }
+    functionsRef = null;
     // تطبيق ثانوي منفصل: بيستخدم بس لحظة إنشاء مستخدم جديد من شاشة الإعدادات
     // عشان إنشاء حساب Firebase Auth لموظف جديد ميعملش تسجيل خروج تلقائي للمدير الحالي
     const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
@@ -802,19 +802,6 @@ function loginEmailCandidates(username, knownUser){
     cachedAuthEmail(username),
     usernameToEmail(username)
   ].filter(Boolean).map(email => String(email).trim().toLowerCase()))];
-}
-async function resolveRemoteAuthEmail(username){
-  if(!functionsRef) return '';
-  try{
-    const result = await functionsRef.httpsCallable('resolveUsername')({ username });
-    const email = String(result?.data?.email || '').trim().toLowerCase();
-    if(email) rememberAuthEmail(username, email);
-    return email;
-  }catch(_e){
-    // الخدمة مساعدة فقط؛ يستمر الدخول بالصيغة الحالية عند عدم نشرها أو
-    // انقطاع الشبكة، حتى لا تتعطل الحسابات الجديدة أو العمل المحلي.
-    return '';
-  }
 }
 // اسم المستخدم هو معرّف الدخول في الواجهة، لذلك توحّد المقارنة بين
 // شاشة الإضافة وشاشة الدخول وبيانات Firestore القديمة.
@@ -2751,11 +2738,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
   const knownUser = hasUsers ? findStoreUser(username) : null;
   // بعد تغيير اسم المستخدم يظل بريد Firebase الداخلي ثابتًا. نستخدم آخر
   // بريد موثق على هذا الجهاز قبل اشتقاق بريد جديد من الاسم.
-  const resolvedEmail = await resolveRemoteAuthEmail(username);
-  const emailCandidates = [...new Set([
-    resolvedEmail,
-    ...loginEmailCandidates(username, knownUser)
-  ].filter(Boolean))];
+  const emailCandidates = loginEmailCandidates(username, knownUser);
   const email = emailCandidates[0] || usernameToEmail(username);
 
   // إنشاء أول حساب مدير (أول تشغيل للنظام)
