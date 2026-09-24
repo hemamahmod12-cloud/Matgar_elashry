@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v3';
+const CACHE_NAME = 'matgar-elashry-shell-v4';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
@@ -50,6 +50,23 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
+
+  // صفحات HTML تُحدّث من الشبكة أولًا حتى لا يظل المستخدم على نسخة قديمة بعد النشر.
+  if (request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(request, response.clone());
+        }
+        return response;
+      } catch (_) {
+        return caches.match(request).then(cached => cached || caches.match('./index.html'));
+      }
+    })());
+    return;
+  }
 
   // لا نحتجز طلبات Firebase/Firestore أو أي كتابة سحابية داخل Service Worker.
   if (url.hostname.includes('googleapis.com') ||
