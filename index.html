@@ -786,7 +786,16 @@ function usernameToEmail(username){
   const clean = String(username).toLowerCase().trim().replace(/[^a-z0-9._-]/g, '');
   return `${clean || 'user'}@matgar-elashry.app`;
 }
-
+function authEmailCacheKey(username){
+  return `matgar-auth-email:${normalizeUsername(username)}`;
+}
+function cachedAuthEmail(username){
+  try{ return localStorage.getItem(authEmailCacheKey(username)) || ''; }catch(_e){ return ''; }
+}
+function rememberAuthEmail(username, email){
+  if(!username || !email) return;
+  try{ localStorage.setItem(authEmailCacheKey(username), String(email).trim().toLowerCase()); }catch(_e){}
+}
 // اسم المستخدم هو معرّف الدخول في الواجهة، لذلك توحّد المقارنة بين
 // شاشة الإضافة وشاشة الدخول وبيانات Firestore القديمة.
 function normalizeUsername(username){
@@ -832,7 +841,17 @@ function idbSet(key, value){
 }
 
 const hasClaudeStorage = typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function';
-
+async function loadLocalUsersForLogin(){
+  try{
+    const raw = hasClaudeStorage
+      ? (await window.storage.get(KEYS.users).catch(() => null))?.value
+      : await idbGet(KEYS.users);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)) state.users = parsed;
+    }
+  }catch(_e){ /* لا نمنع شاشة الدخول إذا لم توجد نسخة محلية */ }
+}
 async function storageGet(key){
   if(db){
     try{ return await fsGet(key); }
@@ -2710,7 +2729,11 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
   // اسم المستخدم واجهة فقط؛ إن كان لدينا بريد Auth محفوظ للمستخدم فنستخدمه
   // بدل اشتقاق بريد جديد من الاسم. هذا يسمح بتغيير الاسم دون updateEmail.
   const knownUser = hasUsers ? findStoreUser(username) : null;
-  const email = (knownUser && knownUser.authEmail) || usernameToEmail(username);
+  // بعد تغيير اسم المستخدم يظل بريد Firebase الداخلي ثابتًا. نستخدم آخر
+  // بريد موثق على هذا الجهاز قبل اشتقاق بريد جديد من الاسم.
+  const email = (knownUser && knownUser.authEmail)
+    || cachedAuthEmail(username)
+    || usernameToEmail(username);
 
   // إنشاء أول حساب مدير (أول تشغيل للنظام)
   if(!hasUsers && setupMode){
@@ -2727,6 +2750,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
         if(createErr.code !== 'auth/email-already-in-use' || !auth) throw createErr;
         cred = await auth.signInWithEmailAndPassword(email, password);
       }
+      if(cred?.user?.email) rememberAuthEmail(username, cred.user.email);
       const admin = { id: cred ? cred.user.uid : uid(), name: fullname, username, role: 'admin', authEmail: cred && cred.user ? cred.user.email : email };
       const existing = findStoreUser(username);
       if(existing){
@@ -2763,6 +2787,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
       delete legacyUser.password;
       await save('users');
     }
+    if(cred?.user?.email) rememberAuthEmail(username, cred.user.email);
     // بعد نجاح Authentication فقط نقرأ users من Firestore؛ لا نعيد إنشاء
     // سجل المستخدم ولا نكتب فوقه عندما تكون القراءة قبل الدخول ممنوعة.
     if(!state.users.length) await loadAll();
@@ -3077,6 +3102,7 @@ function openEditUserForm(u){
       u.name = name;
       u.username = newUsername;
       if(auth && auth.currentUser && auth.currentUser.email) u.authEmail = auth.currentUser.email;
+      if(u.authEmail) rememberAuthEmail(newUsername, u.authEmail);
       const savedUser = await save('users');
       if(!savedUser) throw Object.assign(new Error('users-save-failed'), { code:'store/users-save-failed' });
       logAudit('تعديل حساب شخصي', 'users', { usernameChanged, passwordChanged: !!newPassword });
@@ -3298,6 +3324,7 @@ function renderAll(){
   // الخطأ الطبيعي قبل المصادقة إلى تحذير "الحفظ المحلي مؤقت فقط" ويظل هذا
   // الوضع عالقًا حتى بعد نجاح تسجيل الدخول.
   // يتم تحميل بيانات المتجر بعد نجاح Firebase Authentication داخل مسار الدخول.
+  await loadLocalUsersForLogin();
   updateBranding();
   document.getElementById('splash').style.display = 'none';
   showLoginScreen();
