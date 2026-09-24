@@ -58,6 +58,7 @@
     const bar = document.getElementById('offlineStatusBar');
     const text = document.getElementById('connectionText');
     const count = document.getElementById('pendingInvoicesCount');
+    const salesCount = document.getElementById('offlineSalesCount');
     const sync = document.getElementById('lastSyncText');
     if (!bar || !text || !count) return;
 
@@ -68,6 +69,11 @@
     const total = await pendingCount();
     count.textContent = String(total);
     count.setAttribute('aria-label', `${total} فواتير معلقة`);
+    if (salesCount && global.MatgarOfflineQueue) {
+      const queued = await global.MatgarOfflineQueue.count().catch(() => 0);
+      salesCount.hidden = queued === 0;
+      salesCount.textContent = `مبيعات تحتاج مزامنة: ${queued}`;
+    }
     if (sync) {
       sync.textContent = `آخر فحص: ${new Date().toLocaleTimeString('ar-EG', {
         hour: '2-digit', minute: '2-digit'
@@ -80,6 +86,7 @@
     global.addEventListener('online', refresh);
     global.addEventListener('offline', refresh);
     global.addEventListener('parked-invoices-changed', refresh);
+    global.addEventListener('offline-queue-changed', refresh);
     const button = document.getElementById('pendingInvoicesButton');
     button?.addEventListener('click', () => {
       document.getElementById('parkedSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });

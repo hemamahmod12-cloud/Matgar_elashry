@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v4';
+const CACHE_NAME = 'matgar-elashry-shell-v5';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const SAME_ORIGIN_SHELL = [
   './src/sale-calculator.js',
   './src/store-repository.js',
   './src/collections-repository.js',
+  './src/offline-queue.js',
   './src/offline-status.js'
 ];
 const THIRD_PARTY_SHELL = [
@@ -44,6 +45,13 @@ self.addEventListener('activate', event => {
     await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
+});
+
+self.addEventListener('sync', event => {
+  if (event.tag !== 'matgar-offline-sync') return;
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    clients.forEach(client => client.postMessage({ type: 'matgar-offline-sync' }));
+  }));
 });
 
 self.addEventListener('fetch', event => {

@@ -37,8 +37,8 @@
       }, onError);
   }
 
-  async function createSaleRequest(payload) {
-    const requestId = createId();
+  async function createSaleRequest(payload, providedRequestId) {
+    const requestId = providedRequestId || createId();
     await collection('saleRequests').doc(requestId).set({
       ...payload,
       status: 'pending',

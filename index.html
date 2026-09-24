@@ -575,6 +575,7 @@
     <button id="pendingInvoicesButton" class="pending-invoices" type="button" title="عرض الفواتير المعلقة">
       <span aria-hidden="true">🧾</span><span>فواتير معلقة</span><strong id="pendingInvoicesCount">0</strong>
     </button>
+    <span id="offlineSalesCount" class="last-sync-text offline-sales-count" hidden>مبيعات بانتظار المزامنة: 0</span>
     <span id="lastSyncText" class="last-sync-text">لم تتم المزامنة بعد</span>
   </section>
 
@@ -703,6 +704,7 @@
 <script src="src/sale-calculator.js"></script>
 <script src="src/store-repository.js"></script>
 <script src="src/collections-repository.js"></script>
+<script src="src/offline-queue.js"></script>
 <script src="src/offline-status.js"></script>
 <script>
 (function(){
@@ -720,6 +722,8 @@ let storageMode = 'none'; // 'firebase' | 'claude' | 'browser' | 'none'
 let currentUser = null;
 let realtimeUnsubs = [];      // معالجات إيقاف الاستماع اللحظي لكل مستند
 let saleInProgress = false;   // يمنع الضغط المزدوج على زر تأكيد البيع
+let activeOfflineOperationId = null;
+let offlineSyncInProgress = false;
 
 /* ---------------- قفل تلقائي بعد عدم نشاط ----------------
    لو حد سايب الشاشة مفتوحة (كاشير نسي يقفل مثلًا)، النظام بيسجّل خروج
@@ -858,6 +862,16 @@ function requireCloudForSensitiveWrite(){
     return false;
   }
   return true;
+}
+
+function createClientOperationId(){
+  return (window.crypto && typeof window.crypto.randomUUID === 'function')
+    ? window.crypto.randomUUID()
+    : `offline-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function dispatchOfflineQueueChanged(){
+  window.dispatchEvent(new CustomEvent('offline-queue-changed'));
 }
 
 async function loadAll(){
@@ -1560,14 +1574,52 @@ async function confirmSaleViaCollections(payment){
     tax: payment.tax,
     total: payment.total,
     paymentMethod: payment.paymentMethod,
-    received: payment.received
-  });
+    received: payment.received,
+    clientOperationId: activeOfflineOperationId || null
+  }, activeOfflineOperationId || undefined);
   return MatgarCollections.processSaleRequest(requestId);
 }
 
-async function confirmSale(){
-  if(cart.length === 0 || saleInProgress) return;
-  if(!requireCloudForSensitiveWrite()) return;
+async function confirmSale(options = {}){
+  const fromOfflineQueue = options.fromOfflineQueue === true;
+  const silent = options.silent === true;
+  if(cart.length === 0 || saleInProgress) return null;
+  if(!fromOfflineQueue && !navigator.onLine){
+    if(!window.MatgarOfflineQueue){ toast('التخزين المحلي غير متاح؛ لم يتم حفظ البيع'); return null; }
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const received = parseFloat(document.getElementById('cashReceived').value) || 0;
+    const cartLines = cart.map(c => ({...c}));
+    const payment = MatgarSales.calculateSale({
+      lines: cartLines,
+      discount: document.getElementById('discountInput').value,
+      taxRate: state.settings.taxRate || 0,
+      paymentMethod,
+      received
+    });
+    MatgarSales.validatePayment(payment);
+    const clientOperationId = createClientOperationId();
+    await window.MatgarOfflineQueue.enqueue({
+      clientOperationId,
+      cashierId: currentUser?.id || null,
+      cashierName: currentUser?.name || '',
+      items: cartLines,
+      subtotal: payment.subtotal,
+      discount: payment.discount,
+      tax: payment.tax,
+      total: payment.total,
+      paymentMethod,
+      received: payment.received,
+      change: payment.change
+    });
+    cart = [];
+    closeModal();
+    renderCart();
+    dispatchOfflineQueueChanged();
+    toast('تم حفظ البيع محليًا وسيتم ترحيله تلقائيًا عند عودة الاتصال');
+    window.MatgarOfflineQueue.requestBackgroundSync();
+    return { queued: true, clientOperationId };
+  }
+  if(!requireCloudForSensitiveWrite()) return null;
   saleInProgress = true;
   const confirmBtn = document.getElementById('confirmSaleBtn');
   if(confirmBtn){ confirmBtn.disabled = true; confirmBtn.textContent = 'جاري الحفظ...'; }
@@ -1585,6 +1637,7 @@ async function confirmSale(){
     MatgarSales.validatePayment(payment);
     const { subtotal, discount, tax, total, change } = payment;
     let sale;
+    let saleAlreadyPresent = false;
 
     if(COLLECTIONS_BACKEND_ENABLED){
       const result = await confirmSaleViaCollections(payment);
@@ -1616,6 +1669,10 @@ async function confirmSale(){
         const liveProducts = prodSnap.exists ? JSON.parse(prodSnap.data().value) : [];
         const liveSales   = salesSnap.exists ? JSON.parse(salesSnap.data().value) : [];
         const liveMoves   = movesSnap.exists ? JSON.parse(movesSnap.data().value) : [];
+        if(activeOfflineOperationId){
+          const existing = liveSales.find(item => item.clientOperationId === activeOfflineOperationId);
+          if(existing){ sale = existing; saleAlreadyPresent = true; return; }
+        }
         const invoiceNo = counterSnap.exists ? (counterSnap.data().value || 1000) : 1000;
 
         // تحقق نهائي من الكمية المتاحة على أحدث بيانات وقت الحفظ نفسه —
@@ -1630,7 +1687,7 @@ async function confirmSale(){
         if(insufficient.length) throw Object.assign(new Error('insufficient-stock'), { insufficient });
 
         sale = {
-          id: uid(), invoiceNo, date: Date.now(),
+          id: uid(), invoiceNo, date: Date.now(), clientOperationId: activeOfflineOperationId || null,
           items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
           subtotal, discount, tax, total, paymentMethod, received, change,
           cashierName: currentUser ? currentUser.name : '', returned:false
@@ -1650,40 +1707,50 @@ async function confirmSale(){
         state.products = liveProducts;
         state.moves = liveMoves;
       });
-      state.sales = [sale, ...state.sales];
+      if(!saleAlreadyPresent) state.sales = [sale, ...state.sales];
     } else {
       // من غير Firebase (تخزين محلي بس على نفس الجهاز) — مفيش خطر تعارض بين أجهزة
-      const insufficient = [];
-      cartLines.forEach(c => {
-        const p = findProduct(c.productId);
-        const available = p ? (p.qty||0) : 0;
-        if(available < c.qty) insufficient.push({ name:c.name, available, requested:c.qty });
-      });
-      if(insufficient.length) throw Object.assign(new Error('insufficient-stock'), { insufficient });
+      const existingLocal = activeOfflineOperationId && state.sales.find(item => item.clientOperationId === activeOfflineOperationId);
+      if(existingLocal){
+        sale = existingLocal;
+        saleAlreadyPresent = true;
+      } else {
+        const insufficient = [];
+        cartLines.forEach(c => {
+          const p = findProduct(c.productId);
+          const available = p ? (p.qty||0) : 0;
+          if(available < c.qty) insufficient.push({ name:c.name, available, requested:c.qty });
+        });
+        if(insufficient.length) throw Object.assign(new Error('insufficient-stock'), { insufficient });
 
-      const invoiceNo = state.settings.invoiceCounter || 1000;
-      state.settings.invoiceCounter = invoiceNo + 1;
-      sale = {
-        id: uid(), invoiceNo, date: Date.now(),
-        items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-        subtotal, discount, tax, total, paymentMethod, received, change,
-        cashierName: currentUser ? currentUser.name : '', returned:false
-      };
-      cartLines.forEach(c => {
-        const p = findProduct(c.productId);
-        if(p){
-          p.qty = Math.max(0, p.qty - c.qty);
-          state.moves.unshift({ id: uid(), date: Date.now(), productId:p.id, productName:p.name, type:'out', qty:c.qty, reason:'بيع فاتورة #'+invoiceNo });
-        }
-      });
-      state.sales.unshift(sale);
-      await save('products'); await save('moves'); await save('sales'); await save('settings');
+        const invoiceNo = state.settings.invoiceCounter || 1000;
+        state.settings.invoiceCounter = invoiceNo + 1;
+        sale = {
+          id: uid(), invoiceNo, date: Date.now(), clientOperationId: activeOfflineOperationId || null,
+          items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
+          subtotal, discount, tax, total, paymentMethod, received, change,
+          cashierName: currentUser ? currentUser.name : '', returned:false
+        };
+        cartLines.forEach(c => {
+          const p = findProduct(c.productId);
+          if(p){
+            p.qty = Math.max(0, p.qty - c.qty);
+            state.moves.unshift({ id: uid(), date: Date.now(), productId:p.id, productName:p.name, type:'out', qty:c.qty, reason:'بيع فاتورة #'+invoiceNo });
+          }
+        });
+        state.sales.unshift(sale);
+        await save('products'); await save('moves'); await save('sales'); await save('settings');
+      }
     }
-    logAudit('بيع فاتورة', 'sales', { invoiceNo: sale.invoiceNo, total: sale.total });
-    showReceipt(sale);
-    cart = [];
-    renderCart(); renderPosList(); renderStockView(); renderReports();
+    logAudit('بيع فاتورة', 'sales', { invoiceNo: sale.invoiceNo, total: sale.total, clientOperationId: activeOfflineOperationId || null });
+    if(!silent) showReceipt(sale);
+    if(!fromOfflineQueue){
+      cart = [];
+      renderCart(); renderPosList(); renderStockView(); renderReports();
+    }
+    return sale;
       }catch(e){
+        if(fromOfflineQueue) throw e;
         if(e && e.message === 'insufficient-payment'){
           toast('المبلغ المستلم أقل من إجمالي الفاتورة');
         } else if(e && e.message === 'insufficient-stock' && Array.isArray(e.insufficient)){
@@ -1703,6 +1770,100 @@ async function confirmSale(){
     saleInProgress = false;
     if(confirmBtn){ confirmBtn.disabled = false; confirmBtn.textContent = 'تأكيد البيع وطباعة الفاتورة'; }
   }
+}
+
+async function syncOfflineSales(manual = false){
+  if(!window.MatgarOfflineQueue || !navigator.onLine || offlineSyncInProgress || !currentUser) return;
+  const pending = await window.MatgarOfflineQueue.pending().catch(() => []);
+  if(!pending.length){
+    if(manual) toast('لا توجد مبيعات معلقة للمزامنة');
+    dispatchOfflineQueueChanged();
+    return;
+  }
+  offlineSyncInProgress = true;
+  let synced = 0;
+  try{
+    for(const operation of pending){
+      const payload = operation.payload || {};
+      const originalCart = cart;
+      const originalFields = ['paymentMethod','cashReceived','discountInput'].reduce((all, id) => {
+        const el = document.getElementById(id);
+        all[id] = el ? el.value : null;
+        return all;
+      }, {});
+      activeOfflineOperationId = operation.clientOperationId;
+      cart = (payload.items || []).map(item => ({...item}));
+      const paymentMethod = document.getElementById('paymentMethod');
+      const cashReceived = document.getElementById('cashReceived');
+      const discountInput = document.getElementById('discountInput');
+      if(paymentMethod) paymentMethod.value = payload.paymentMethod || 'نقدي';
+      if(cashReceived) cashReceived.value = payload.received || 0;
+      if(discountInput) discountInput.value = payload.discount || 0;
+      await window.MatgarOfflineQueue.update(operation.clientOperationId, {
+        status:'pending', attempts:(operation.attempts || 0) + 1, lastAttemptAt:Date.now(), lastError:null
+      });
+      try{
+        const sale = await confirmSale({ fromOfflineQueue:true, silent:true });
+        if(!sale) throw new Error('offline-sale-not-completed');
+        await window.MatgarOfflineQueue.remove(operation.clientOperationId);
+        synced += 1;
+      }catch(error){
+        const permanent = error && (error.message === 'insufficient-stock' || error.message === 'insufficient-payment');
+        await window.MatgarOfflineQueue.update(operation.clientOperationId, {
+          status: permanent ? 'failed' : 'pending',
+          lastError: error?.message || 'sync-failed',
+          lastErrorAt: Date.now()
+        });
+        if(!navigator.onLine) break;
+      }finally{
+        activeOfflineOperationId = null;
+        cart = originalCart;
+        Object.entries(originalFields).forEach(([id, value]) => {
+          const el = document.getElementById(id);
+          if(el && value !== null) el.value = value;
+        });
+      }
+    }
+  }finally{
+    activeOfflineOperationId = null;
+    offlineSyncInProgress = false;
+    renderCart(); renderPosList(); renderStockView(); renderReports();
+    dispatchOfflineQueueChanged();
+  }
+  if(manual) toast(synced ? `تمت مزامنة ${synced} فاتورة بنجاح` : 'لم تتم مزامنة أي فاتورة؛ راجع مركز المزامنة');
+}
+
+async function openOfflineSalesViewer(){
+  if(!window.MatgarOfflineQueue){ toast('طابور المزامنة غير متاح في هذا المتصفح'); return; }
+  const items = await window.MatgarOfflineQueue.list();
+  openModal(`
+    <div class="modal-title">مركز المزامنة المحلية</div>
+    <div class="muted" style="margin-bottom:12px;">المبيعات لا تخصم المخزون المشترك إلا بعد اعتمادها من الخادم. العمليات الفاشلة تظل محفوظة حتى تراجعها.</div>
+    <div class="row" style="gap:8px;margin-bottom:12px;">
+      <button class="btn btn-primary" id="syncOfflineNowBtn">مزامنة الآن</button>
+      <span class="pill ${navigator.onLine ? 'pill-ok' : 'pill-warn'}">${navigator.onLine ? 'متصل' : 'بدون إنترنت'}</span>
+    </div>
+    <div class="stack">
+      ${items.length ? items.map(item => `<div class="card" style="padding:10px;">
+        <div class="row between"><b>${item.status === 'failed' ? 'فشل الترحيل' : 'بانتظار المزامنة'}</b><span class="muted">${fmtDateShort(item.createdAt)}</span></div>
+        <div class="muted">${(item.payload?.items || []).length} صنف · ${money(item.payload?.total || 0)} · محلي: ${esc(item.clientOperationId.slice(0,8))}</div>
+        ${item.lastError ? `<div style="color:var(--danger);font-size:12px;margin-top:5px;">السبب: ${esc(item.lastError === 'insufficient-stock' ? 'المخزون غير كافٍ حاليًا' : item.lastError)}</div>` : ''}
+      </div>`).join('') : '<div class="muted">لا توجد عمليات معلقة.</div>'}
+    </div>
+  `);
+  document.getElementById('syncOfflineNowBtn')?.addEventListener('click', async () => {
+    const failed = (await window.MatgarOfflineQueue.list()).filter(item => item.status === 'failed');
+    await Promise.all(failed.map(item => window.MatgarOfflineQueue.update(item.clientOperationId, { status:'pending', lastError:null })));
+    await syncOfflineSales(true);
+    openOfflineSalesViewer();
+  });
+}
+
+window.addEventListener('online', () => syncOfflineSales(false));
+if(navigator.serviceWorker){
+  navigator.serviceWorker.addEventListener('message', event => {
+    if(event.data?.type === 'matgar-offline-sync') syncOfflineSales(false);
+  });
 }
 
 function printSale(sale){
@@ -2648,6 +2809,11 @@ function openSettings(){
       </div>
     </div>
     <div class="pill ${storageModeLabel().cls}" style="margin-bottom:14px;">${storageModeLabel().text}</div>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="row between" style="margin-bottom:6px;"><b>المزامنة المحلية</b><span id="offlineSettingsCount" class="pill pill-warn">جارٍ الفحص...</span></div>
+      <div class="muted" style="margin-bottom:8px;">راجع المبيعات التي أُدخلت أثناء انقطاع الإنترنت وتابع حالتها بعد عودة الاتصال.</div>
+      <button class="btn btn-outline btn-block" id="offlineSalesBtn">فتح مركز المزامنة</button>
+    </div>
     <div style="clear:both;"></div>
     ${isAdmin ? `
     <div class="field"><label>اسم المتجر</label><input id="s_name" value="${esc(state.settings.storeName)}"></div>
@@ -2694,6 +2860,13 @@ function openSettings(){
     ` : ''}
   `);
   document.getElementById('logoutBtn').addEventListener('click', () => { closeModal(); logout(); });
+  document.getElementById('offlineSalesBtn')?.addEventListener('click', openOfflineSalesViewer);
+  if(window.MatgarOfflineQueue){
+    window.MatgarOfflineQueue.count().then(count => {
+      const label = document.getElementById('offlineSettingsCount');
+      if(label) label.textContent = count ? `${count} معلقة` : 'لا توجد عمليات';
+    });
+  }
   if(isAdmin){
     renderUsersList();
     const logoInput = document.getElementById('logoUpload');
