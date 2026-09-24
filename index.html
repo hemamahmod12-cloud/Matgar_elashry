@@ -1837,6 +1837,14 @@ async function syncOfflineSales(manual = false){
   if(manual) toast(synced ? `تمت مزامنة ${synced} فاتورة بنجاح` : 'لم تتم مزامنة أي فاتورة؛ راجع مركز المزامنة');
 }
 
+async function retryOfflineQueue(){
+  if(!window.MatgarOfflineQueue){ toast('طابور المزامنة غير متاح في هذا المتصفح'); return; }
+  if(!navigator.onLine){ toast('لا يوجد اتصال بالإنترنت حاليًا'); return; }
+  const failed = (await window.MatgarOfflineQueue.list()).filter(item => item.status === 'failed');
+  await Promise.all(failed.map(item => window.MatgarOfflineQueue.update(item.clientOperationId, { status:'pending', lastError:null })));
+  await syncOfflineSales(true);
+}
+
 async function openOfflineSalesViewer(){
   if(!window.MatgarOfflineQueue){ toast('طابور المزامنة غير متاح في هذا المتصفح'); return; }
   const items = await window.MatgarOfflineQueue.list();
@@ -1856,9 +1864,7 @@ async function openOfflineSalesViewer(){
     </div>
   `);
   document.getElementById('syncOfflineNowBtn')?.addEventListener('click', async () => {
-    const failed = (await window.MatgarOfflineQueue.list()).filter(item => item.status === 'failed');
-    await Promise.all(failed.map(item => window.MatgarOfflineQueue.update(item.clientOperationId, { status:'pending', lastError:null })));
-    await syncOfflineSales(true);
+    await retryOfflineQueue();
     openOfflineSalesViewer();
   });
 }
@@ -2816,6 +2822,7 @@ function openSettings(){
     <div class="card" style="margin-bottom:14px;">
       <div class="row between" style="margin-bottom:6px;"><b>المزامنة المحلية</b><span id="offlineSettingsCount" class="pill pill-warn">جارٍ الفحص...</span></div>
       <div class="muted" style="margin-bottom:8px;">راجع المبيعات التي أُدخلت أثناء انقطاع الإنترنت وتابع حالتها بعد عودة الاتصال.</div>
+      <button class="btn btn-primary btn-block" id="syncOfflineDirectBtn" style="margin-bottom:8px;">مزامنة الآن</button>
       <button class="btn btn-outline btn-block" id="offlineSalesBtn">فتح مركز المزامنة</button>
     </div>
     <div style="clear:both;"></div>
@@ -2864,6 +2871,7 @@ function openSettings(){
     ` : ''}
   `);
   document.getElementById('logoutBtn').addEventListener('click', () => { closeModal(); logout(); });
+  document.getElementById('syncOfflineDirectBtn')?.addEventListener('click', retryOfflineQueue);
   document.getElementById('offlineSalesBtn')?.addEventListener('click', openOfflineSalesViewer);
   if(window.MatgarOfflineQueue){
     window.MatgarOfflineQueue.count().then(count => {
