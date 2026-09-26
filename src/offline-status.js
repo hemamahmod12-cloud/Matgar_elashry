@@ -3,15 +3,17 @@
   'use strict';
 
   const DB_NAME = 'storeSystemDB_v1';
+  const DB_VERSION = 2;
   const STORE_NAME = 'kv';
 
   function openDb() {
     return new Promise((resolve, reject) => {
       if (!global.indexedDB) return reject(new Error('indexeddb-unavailable'));
-      const request = global.indexedDB.open(DB_NAME, 1);
+      const request = global.indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
-        if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-          request.result.createObjectStore(STORE_NAME);
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
         }
       };
       request.onsuccess = () => resolve(request.result);
