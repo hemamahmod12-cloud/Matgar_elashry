@@ -1,6 +1,43 @@
+# Firebase و خدمات سحابية
 migration-artifacts/
 service-account*.json
 *.service-account.json
+.firebaserc
+.firebase/
+
+# متغيرات البيئة والمفاتيح السرية
 .env
 .env.*
+!.env.example
+
+# تبعيات المشروع
 node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ملفات النظام
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/settings.json
+.idea/
+*.sublime-workspace
+
+# سجلات وملفات النشر
+*.log
+*.tar.gz
+dist/
+build/
+.out/
+
+# ملفات مؤقتة
+.tmp/
+.cache/
+*.pid
+
+# ملفات البناء
+.webpack/
+.next/
