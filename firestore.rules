@@ -47,7 +47,8 @@ service cloud.firestore {
     match /auditLog/{entryId} {
       allow read: if isAdmin();
       allow create: if signedIn()
-        && request.resource.data.byUserId == request.auth.uid;
+        && request.resource.data.byUserId == request.auth.uid
+        && request.resource.data.createdAt == request.time;
       allow update, delete: if false;
     }
 
