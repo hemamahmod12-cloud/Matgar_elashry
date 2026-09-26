@@ -837,10 +837,16 @@ function clearOfflineDirty(key){
   try{ localStorage.setItem(OFFLINE_DIRTY_KEY, JSON.stringify(readOfflineDirty().filter(item => item !== key))); }catch(_e){}
 }
 function loginEmailCandidates(username, knownUser){
+  const suppliedEmail = String(username || '').includes('@') ? String(username).trim().toLowerCase() : '';
+  const legacyAliases = normalizeUsername(username) === 'manager1'
+    ? ['manager@matgar-elashry.app', 'admin@matgar-elashry.app', 'admin1@matgar-elashry.app']
+    : [];
   return [...new Set([
+    suppliedEmail,
     knownUser && knownUser.authEmail,
     cachedAuthEmail(username),
-    usernameToEmail(username)
+    usernameToEmail(username),
+    ...legacyAliases
   ].filter(Boolean).map(email => String(email).trim().toLowerCase()))];
 }
 // اسم المستخدم هو معرّف الدخول في الواجهة، لذلك توحّد المقارنة بين
