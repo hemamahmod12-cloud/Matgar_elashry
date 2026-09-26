@@ -725,6 +725,8 @@ let realtimeUnsubs = [];      // معالجات إيقاف الاستماع ال
 let saleInProgress = false;   // يمنع الضغط المزدوج على زر تأكيد البيع
 let activeOfflineOperationId = null;
 let offlineSyncInProgress = false;
+const OFFLINE_SESSION_KEY = 'matgar-offline-session-v2';
+const OFFLINE_DIRTY_KEY = 'matgar-offline-dirty-v1';
 
 /* ---------------- قفل تلقائي بعد عدم نشاط ----------------
    لو حد سايب الشاشة مفتوحة (كاشير نسي يقفل مثلًا)، النظام بيسجّل خروج
@@ -772,6 +774,9 @@ try{
       console.warn('Offline persistence غير مفعّلة:', err.code);
     });
     auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err => {
+      console.warn('تعذر تثبيت جلسة Firebase محليًا:', err.code || err.message);
+    });
     functionsRef = null;
     // تطبيق ثانوي منفصل: بيستخدم بس لحظة إنشاء مستخدم جديد من شاشة الإعدادات
     // عشان إنشاء حساب Firebase Auth لموظف جديد ميعملش تسجيل خروج تلقائي للمدير الحالي
@@ -795,6 +800,41 @@ function cachedAuthEmail(username){
 function rememberAuthEmail(username, email){
   if(!username || !email) return;
   try{ localStorage.setItem(authEmailCacheKey(username), String(email).trim().toLowerCase()); }catch(_e){}
+}
+function cacheOfflineSession(username, password, user){
+  try{
+    localStorage.setItem(OFFLINE_SESSION_KEY, JSON.stringify({
+      username: normalizeUsername(username),
+      passwordHash: simpleHash(password),
+      user: { id:user.id, name:user.name, username:user.username, role:user.role, authEmail:user.authEmail || '' },
+      savedAt: Date.now()
+    }));
+  }catch(_e){}
+}
+function readOfflineSession(username, password){
+  try{
+    const raw = localStorage.getItem(OFFLINE_SESSION_KEY);
+    const session = raw ? JSON.parse(raw) : null;
+    if(!session || session.username !== normalizeUsername(username)) return null;
+    if(session.passwordHash !== simpleHash(password)) return null;
+    if(!session.user || !session.user.id) return null;
+    return session.user;
+  }catch(_e){ return null; }
+}
+function markOfflineDirty(key){
+  try{
+    const keys = JSON.parse(localStorage.getItem(OFFLINE_DIRTY_KEY) || '[]');
+    if(!keys.includes(key)){ keys.push(key); localStorage.setItem(OFFLINE_DIRTY_KEY, JSON.stringify(keys)); }
+  }catch(_e){}
+}
+function readOfflineDirty(){
+  try{
+    const keys = JSON.parse(localStorage.getItem(OFFLINE_DIRTY_KEY) || '[]');
+    return Array.isArray(keys) ? keys : [];
+  }catch(_e){ return []; }
+}
+function clearOfflineDirty(key){
+  try{ localStorage.setItem(OFFLINE_DIRTY_KEY, JSON.stringify(readOfflineDirty().filter(item => item !== key))); }catch(_e){}
 }
 function loginEmailCandidates(username, knownUser){
   return [...new Set([
@@ -861,7 +901,11 @@ async function loadLocalUsersForLogin(){
 }
 async function storageGet(key){
   if(db){
-    try{ return await fsGet(key); }
+    try{
+      const value = await fsGet(key);
+      if(value != null) idbSet(key, value).catch(() => {});
+      return value;
+    }
     catch(e){
       // بعض المستندات الاختيارية (الإعدادات/المصروفات) قد تكون محمية
       // بقواعد أقدم؛ لا نسمح بفشلها أن يعطّل مزامنة المنتجات والمبيعات.
@@ -879,6 +923,13 @@ async function storageGet(key){
   return idbGet(key);
 }
 async function storageSet(key, value){
+  // أثناء انقطاع الإنترنت نكتب فورًا إلى IndexedDB بدل تعطيل العمل؛
+  // Firestore سيحتفظ بما لديه من cache، وتبقى البيانات الجديدة على الجهاز.
+  if(!navigator.onLine){
+    storageMode = 'browser-offline';
+    markOfflineDirty(key);
+    return idbSet(key, value);
+  }
   if(db){
     try{ return await fsSet(key, value); }
     catch(e){
@@ -892,7 +943,20 @@ async function storageSet(key, value){
   return idbSet(key, value);
 }
 
+async function syncDirtyLocalData(){
+  if(!navigator.onLine || !db || !currentUser || storageMode !== 'firebase') return;
+  for(const key of readOfflineDirty()){
+    try{
+      const value = await idbGet(key);
+      if(value != null){ await fsSet(key, value); clearOfflineDirty(key); }
+    }catch(error){ console.warn('تعذر رفع التعديل المحلي:', key, error); }
+  }
+  await loadAll();
+  startRealtimeSync();
+}
+
 function requireCloudForSensitiveWrite(){
+  if(!navigator.onLine) return true;
   if(db && storageMode !== 'firebase'){
     toast('الاتصال السحابي غير متاح. لم يتم حفظ العملية حتى لا تختلف البيانات بين الأجهزة.');
     return false;
@@ -928,7 +992,7 @@ async function loadAll(){
     state.expenses     = ex ? JSON.parse(ex) : [];
     storageOK = true;
     // القراءة السحابية الأساسية تعمل حتى لو تعذر مستند اختياري.
-    storageMode = firebaseReadFailed ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser'));
+    storageMode = !navigator.onLine ? 'browser-offline' : (firebaseReadFailed ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser')));
     if(!p) await save('products');
     if(!c) await save('categories');
     // لا نحاول إنشاء مستند إعدادات محمي بقواعد قديمة؛ الإعداد الافتراضي
@@ -1914,7 +1978,11 @@ async function openOfflineSalesViewer(){
   });
 }
 
-window.addEventListener('online', () => syncOfflineSales(false));
+window.addEventListener('online', async () => {
+  await syncDirtyLocalData();
+  await syncOfflineSales(false);
+  if(storageMode === 'firebase') toast('تمت مزامنة البيانات المحلية مع السحابة ✅');
+});
 if(navigator.serviceWorker){
   navigator.serviceWorker.addEventListener('message', event => {
     if(event.data?.type === 'matgar-offline-sync') syncOfflineSales(false);
@@ -2760,6 +2828,24 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
   const emailCandidates = loginEmailCandidates(username, knownUser);
   const email = emailCandidates[0] || usernameToEmail(username);
 
+  // عند انقطاع الشبكة لا نحاول استدعاء Firebase Auth؛ نتحقق من آخر جلسة
+  // موثقة على هذا الجهاز ونفتح البيانات المخزنة في IndexedDB مباشرة.
+  if(!navigator.onLine){
+    const offlineUser = readOfflineSession(username, password);
+    if(!offlineUser){
+      errEl.textContent = 'لا يوجد اتصال. سجّل الدخول مرة واحدة بالإنترنت على هذا الجهاز أولًا';
+      errEl.style.display = 'block';
+      return;
+    }
+    currentUser = offlineUser;
+    await loadAll();
+    const localUser = state.users.find(u => u.id === offlineUser.id || normalizeUsername(u.username) === username);
+    if(localUser) currentUser = localUser;
+    showApp();
+    toast('وضع العمل دون إنترنت — ستتم المزامنة عند عودة الشبكة');
+    return;
+  }
+
   // إنشاء أول حساب مدير (أول تشغيل للنظام)
   if(!hasUsers && setupMode){
     const fullname = document.getElementById('l_fullname').value.trim();
@@ -2842,6 +2928,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
     currentUser = user;
     await loadAll(); // إعادة تحميل كل بيانات المتجر دلوقتي وإحنا مسجلين دخول فعليًا (بعد ما كانت اتمنعت قبل الدخول)
     currentUser = state.users.find(u => u.id === user.id) || user; // loadAll() بتستبدل state.users، فبنعيد إيجاد نفس المستخدم
+    cacheOfflineSession(username, password, currentUser);
     showApp();
   }catch(e){
     recordFailedAttempt(username);
@@ -2855,6 +2942,7 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
 /* ================= SETTINGS ================= */
 function storageModeLabel(){
   if(storageMode === 'firebase') return { text:'☁️ متصل بقاعدة بيانات سحابية — نفس البيانات على أي جهاز', cls:'pill-ok' };
+  if(storageMode === 'browser-offline') return { text:'📴 وضع العمل دون إنترنت — سيُزامن تلقائيًا عند عودة الشبكة', cls:'pill-warn' };
   if(storageMode === 'firebase-fallback') return { text:'⚠️ تعذر الاتصال بالسحابة — الحفظ المحلي مؤقت فقط', cls:'pill-bad' };
   if(storageMode === 'claude') return { text:'💾 حفظ داخل Claude', cls:'pill-ok' };
   if(storageMode === 'browser') return { text:'📱 حفظ محلي على هذا الجهاز فقط', cls:'pill-warn' };
