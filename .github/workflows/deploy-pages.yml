@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -41,10 +41,24 @@ jobs:
           const file = 'index.html';
           const html = fs.readFileSync(file, 'utf8');
           const injection = `<script>window.__MATGAR_AUTH_ALIASES__=${JSON.stringify(aliases)};</script>`;
-          if (!html.includes('<!-- AUTH_ALIASES_PLACEHOLDER -->')) throw new Error('auth alias placeholder missing');
-          fs.writeFileSync(file, html.replace('<!-- AUTH_ALIASES_PLACEHOLDER -->', injection));
+          const start = '<!-- AUTH_ALIASES_START -->';
+          const end = '<!-- AUTH_ALIASES_END -->';
+          if (!html.includes(start) || !html.includes(end)) throw new Error('auth alias markers missing');
+          const from = html.indexOf(start);
+          const to = html.indexOf(end, from) + end.length;
+          fs.writeFileSync(file, html.slice(0, from) + start + injection + end + html.slice(to));
           fs.unlinkSync('auth-aliases.json');
           NODE
+
+      - name: Persist generated auth aliases in main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if ! git diff --cached --quiet; then
+            git commit -m "build: embed current auth aliases [skip ci]"
+            git push origin HEAD:main
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
