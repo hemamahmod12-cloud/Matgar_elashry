@@ -21,30 +21,43 @@
   }
 
   function roundMoney(value) {
-    return Math.round((Number(value) || 0) * 100) / 100;
+    const num = Number(value) || 0;
+    return Math.round(num * 100) / 100;
   }
 
-  function formatMoney(value, currency) {
-    return roundMoney(value).toFixed(2) + ' ' + (currency || 'ج.م');
+  function formatMoney(value, currency = 'ج.م') {
+    return roundMoney(value).toFixed(2) + ' ' + String(currency);
   }
 
   function daysToExpiry(dateStr, now = new Date()) {
     if (!dateStr) return null;
-    const expiry = new Date(dateStr).setHours(0, 0, 0, 0);
-    const today = new Date(now).setHours(0, 0, 0, 0);
-    return Math.round((expiry - today) / 86400000);
+    try {
+      const expiry = new Date(dateStr).setHours(0, 0, 0, 0);
+      const today = new Date(now).setHours(0, 0, 0, 0);
+      return Math.round((expiry - today) / 86400000);
+    } catch (_) {
+      return null;
+    }
   }
 
   function todayArabic(now = new Date()) {
-    return new Date(now).toLocaleDateString('ar-EG', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
+    try {
+      return new Date(now).toLocaleDateString('ar-EG', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+    } catch (_) {
+      return '';
+    }
   }
 
   function formatDateShort(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('ar-EG', { month: '2-digit', day: '2-digit' }) + ' ' +
-      date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('ar-EG', { month: '2-digit', day: '2-digit' }) + ' ' +
+        date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    } catch (_) {
+      return '';
+    }
   }
 
   function safeImageDataUrl(value) {
