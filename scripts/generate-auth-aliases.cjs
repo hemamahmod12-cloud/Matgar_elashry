@@ -8,7 +8,7 @@ async function main() {
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!raw) return fallback();
     const serviceAccount = JSON.parse(raw);
-    if (!admin.apps.length) {
+    if (!Array.isArray(admin.apps) || !admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: 'story-market-35565'
