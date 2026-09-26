@@ -33,6 +33,19 @@ jobs:
           npm install --no-save --no-package-lock firebase-admin@latest
           node scripts/generate-auth-aliases.cjs
 
+      - name: Embed auth aliases in the application shell
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const aliases = JSON.parse(fs.readFileSync('auth-aliases.json', 'utf8'));
+          const file = 'index.html';
+          const html = fs.readFileSync(file, 'utf8');
+          const injection = `<script>window.__MATGAR_AUTH_ALIASES__=${JSON.stringify(aliases)};</script>`;
+          if (!html.includes('<!-- AUTH_ALIASES_PLACEHOLDER -->')) throw new Error('auth alias placeholder missing');
+          fs.writeFileSync(file, html.replace('<!-- AUTH_ALIASES_PLACEHOLDER -->', injection));
+          fs.unlinkSync('auth-aliases.json');
+          NODE
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

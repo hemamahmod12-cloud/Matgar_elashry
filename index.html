@@ -706,6 +706,7 @@
 <script src="src/collections-repository.js"></script>
 <script src="src/offline-queue.js"></script>
 <script src="src/offline-status.js"></script>
+<!-- AUTH_ALIASES_PLACEHOLDER -->
 <script>
 (function(){
 
@@ -800,6 +801,11 @@ function cachedAuthEmail(username){
 }
 async function loadAuthAliases(){
   const cacheKey = 'matgar-auth-aliases-v1';
+  if(window.__MATGAR_AUTH_ALIASES__ && typeof window.__MATGAR_AUTH_ALIASES__ === 'object'){
+    authAliases = window.__MATGAR_AUTH_ALIASES__;
+    try{ localStorage.setItem(cacheKey, JSON.stringify(authAliases)); }catch(_e){}
+    return;
+  }
   try{
     const response = await fetch(`./auth-aliases.json?v=${encodeURIComponent(location.pathname)}`, { cache:'no-store' });
     if(response.ok){
