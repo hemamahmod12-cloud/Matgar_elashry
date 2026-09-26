@@ -4,17 +4,18 @@ async function main() {
   const output = 'auth-aliases.json';
   const fallback = () => fs.writeFileSync(output, JSON.stringify({}, null, 2) + '\n');
   try {
-    const admin = require('firebase-admin');
+    const { getApps, initializeApp, cert } = require('firebase-admin/app');
+    const { getFirestore } = require('firebase-admin/firestore');
     const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
     if (!raw) return fallback();
     const serviceAccount = JSON.parse(raw);
-    if (!Array.isArray(admin.apps) || !admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert(serviceAccount),
         projectId: 'story-market-35565'
       });
     }
-    const snapshot = await admin.firestore().collection('storeData').doc('users').get();
+    const snapshot = await getFirestore().collection('storeData').doc('users').get();
     const users = snapshot.exists ? JSON.parse(String(snapshot.data()?.value || '[]')) : [];
     const aliases = {};
     for (const user of Array.isArray(users) ? users : []) {
