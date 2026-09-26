@@ -3,6 +3,7 @@
   'use strict';
 
   const STORE_ID = 'main';
+  const TIMEOUT_MS = 30000;
 
   function db() {
     if (!global.firebase || !global.firebase.firestore) {
@@ -26,12 +27,13 @@
     if (global.crypto && typeof global.crypto.randomUUID === 'function') {
       return global.crypto.randomUUID();
     }
-    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   }
 
   function subscribeProducts(onChange, onError) {
     return collection('products')
       .where('deleted', '==', false)
+      .orderBy('name')
       .onSnapshot(snapshot => {
         onChange(snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
       }, onError);
@@ -48,11 +50,16 @@
   }
 
   async function processSaleRequest(requestId) {
-    const result = await functionsApi().httpsCallable('processSaleRequest')({
-      storeId: STORE_ID,
-      requestId
-    });
-    return result.data;
+    try {
+      const result = await Promise.race([
+        functionsApi().httpsCallable('processSaleRequest')({ storeId: STORE_ID, requestId }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
+      ]);
+      return result.data;
+    } catch (err) {
+      console.error('خطأ معالجة طلب البيع:', err);
+      throw err;
+    }
   }
 
   async function createReturnRequest(payload) {
@@ -66,11 +73,16 @@
   }
 
   async function processReturnRequest(requestId) {
-    const result = await functionsApi().httpsCallable('processReturnRequest')({
-      storeId: STORE_ID,
-      requestId
-    });
-    return result.data;
+    try {
+      const result = await Promise.race([
+        functionsApi().httpsCallable('processReturnRequest')({ storeId: STORE_ID, requestId }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
+      ]);
+      return result.data;
+    } catch (err) {
+      console.error('خطأ معالجة طلب الاسترجاع:', err);
+      throw err;
+    }
   }
 
   global.MatgarCollections = Object.freeze({
