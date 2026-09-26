@@ -15,6 +15,11 @@
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME);
         }
+        if (!db.objectStoreNames.contains('outbox')) {
+          const outbox = db.createObjectStore('outbox', { keyPath: 'clientOperationId' });
+          outbox.createIndex('status', 'status', { unique: false });
+          outbox.createIndex('createdAt', 'createdAt', { unique: false });
+        }
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error || new Error('indexeddb-open-failed'));
