@@ -26,6 +26,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Generate auth aliases
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          npm install --no-save --no-package-lock firebase-admin@latest
+          node scripts/generate-auth-aliases.cjs
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

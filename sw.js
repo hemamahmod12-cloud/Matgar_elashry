@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v6';
+const CACHE_NAME = 'matgar-elashry-shell-v7';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const SAME_ORIGIN_SHELL = [
   './src/collections-repository.js',
   './src/offline-queue.js',
   './src/offline-status.js'
+  ,'./auth-aliases.json'
 ];
 const THIRD_PARTY_SHELL = [
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',

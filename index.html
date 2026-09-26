@@ -727,6 +727,7 @@ let activeOfflineOperationId = null;
 let offlineSyncInProgress = false;
 const OFFLINE_SESSION_KEY = 'matgar-offline-session-v2';
 const OFFLINE_DIRTY_KEY = 'matgar-offline-dirty-v1';
+let authAliases = {};
 
 /* ---------------- قفل تلقائي بعد عدم نشاط ----------------
    لو حد سايب الشاشة مفتوحة (كاشير نسي يقفل مثلًا)، النظام بيسجّل خروج
@@ -797,6 +798,24 @@ function authEmailCacheKey(username){
 function cachedAuthEmail(username){
   try{ return localStorage.getItem(authEmailCacheKey(username)) || ''; }catch(_e){ return ''; }
 }
+async function loadAuthAliases(){
+  const cacheKey = 'matgar-auth-aliases-v1';
+  try{
+    const response = await fetch(`./auth-aliases.json?v=${encodeURIComponent(location.pathname)}`, { cache:'no-store' });
+    if(response.ok){
+      const parsed = await response.json();
+      if(parsed && typeof parsed === 'object'){
+        authAliases = parsed;
+        localStorage.setItem(cacheKey, JSON.stringify(parsed));
+        return;
+      }
+    }
+  }catch(_e){}
+  try{
+    const parsed = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+    if(parsed && typeof parsed === 'object') authAliases = parsed;
+  }catch(_e){ authAliases = {}; }
+}
 function rememberAuthEmail(username, email){
   if(!username || !email) return;
   try{ localStorage.setItem(authEmailCacheKey(username), String(email).trim().toLowerCase()); }catch(_e){}
@@ -838,11 +857,13 @@ function clearOfflineDirty(key){
 }
 function loginEmailCandidates(username, knownUser){
   const suppliedEmail = String(username || '').includes('@') ? String(username).trim().toLowerCase() : '';
+  const generatedAlias = authAliases[normalizeUsername(username)] || '';
   const legacyAliases = normalizeUsername(username) === 'manager1'
     ? ['manager@matgar-elashry.app', 'admin@matgar-elashry.app', 'admin1@matgar-elashry.app']
     : [];
   return [...new Set([
     suppliedEmail,
+    generatedAlias,
     knownUser && knownUser.authEmail,
     cachedAuthEmail(username),
     usernameToEmail(username),
@@ -3452,6 +3473,7 @@ function renderAll(){
   // الخطأ الطبيعي قبل المصادقة إلى تحذير "الحفظ المحلي مؤقت فقط" ويظل هذا
   // الوضع عالقًا حتى بعد نجاح تسجيل الدخول.
   // يتم تحميل بيانات المتجر بعد نجاح Firebase Authentication داخل مسار الدخول.
+  await loadAuthAliases();
   await loadLocalUsersForLogin();
   updateBranding();
   document.getElementById('splash').style.display = 'none';
