@@ -11,7 +11,7 @@
     return Math.round((Number(value) || 0) * 100) / 100;
   }
 
-  function calculateSale({ lines = [], discount = 0, taxRate = 0, paymentMethod = 'نقدي', received = 0 } = {}) {
+  function calculateSale({ lines = [], discount = 0, taxRate = 0, paymentMethod = 'نقدي', received = 0, walletBalance = 0 } = {}) {
     const subtotal = lines.reduce((sum, line) => {
       const price = toNonNegativeNumber(line.price);
       const quantity = toNonNegativeNumber(line.qty);
@@ -26,6 +26,7 @@
     const tax = roundCents(taxable * (safeTaxRate / 100));
     const total = roundCents(taxable + tax);
     const safeReceived = toNonNegativeNumber(received);
+    const safeWalletBalance = toNonNegativeNumber(walletBalance);
 
     return {
       subtotal: roundedSubtotal,
@@ -34,13 +35,21 @@
       total,
       paymentMethod,
       received: safeReceived,
-      change: paymentMethod === 'نقدي' ? roundCents(safeReceived - total) : 0
+      walletBalance: safeWalletBalance,
+      change: paymentMethod === 'نقدي' ? roundCents(safeReceived - total) : 
+              paymentMethod === 'محفظة' ? roundCents(safeWalletBalance - total) : 0
     };
   }
 
-  function validatePayment({ total, paymentMethod, received } = {}) {
+  function validatePayment({ total, paymentMethod, received, walletBalance } = {}) {
+    if (!['نقدي', 'بطاقة', 'محفظة'].includes(paymentMethod)) {
+      throw new Error('invalid-payment-method');
+    }
     if (paymentMethod === 'نقدي' && toNonNegativeNumber(received) < toNonNegativeNumber(total)) {
       throw new Error('insufficient-payment');
+    }
+    if (paymentMethod === 'محفظة' && toNonNegativeNumber(walletBalance) < toNonNegativeNumber(total)) {
+      throw new Error('insufficient-wallet-balance');
     }
     return true;
   }
