@@ -680,7 +680,7 @@
       <div class="row" style="margin-bottom:10px;">
         <label class="btn btn-outline" style="flex:1; text-align:center;">
           استيراد ملف Excel / CSV
-          <input type="file" id="importCsvFile" accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel" style="display:none;">
+          <input type="file" id="importCsvFile" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain" style="display:none;">
         </label>
         <button class="btn btn-ghost" id="downloadTemplateBtn" style="flex:0 0 auto;">نموذج الملف</button>
       </div>
@@ -766,6 +766,7 @@
 <script src="src/collections-repository.js"></script>
 <script src="src/offline-queue.js"></script>
 <script src="src/offline-status.js"></script>
+<script src="src/xlsx.full.min.js"></script>
 <!-- AUTH_ALIASES_START --><script>window.__MATGAR_AUTH_ALIASES__={"manager1":"admin2@matgar-elashry.app"};</script><!-- AUTH_ALIASES_END -->
 <script>
 (function(){
@@ -1263,14 +1264,20 @@ function downloadCsvFile(csv, filename){
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function exportProductsCsv(){
-  const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const products = activeProducts();
   if(!products.length){ toast('لا توجد منتجات متاحة للحفظ'); return; }
-  // الفاصلة المنقوطة + رؤوس عربية + BOM = أفضل توافق مع Excel على Android وWindows
-  const lines = ['sep=;','اسم المنتج;الباركود;الفئة;سعر الشراء;سعر البيع;الكمية;حد التنبيه;الوحدة'];
-  products.forEach(p => lines.push([p.name,p.barcode||'',p.category||'عام',p.buyPrice??0,p.sellPrice??0,p.qty??0,p.minQty??0,p.unit||'قطعة'].map(q).join(';')));
-  downloadCsvFile(lines.join('\r\n') + '\r\n', `منتجات-متجر-العشري-${new Date().toISOString().slice(0,10)}.csv`);
-  toast(`تم تنزيل ${products.length} منتج بصيغة Excel عربية متوافقة`);
+  const headers = ['اسم المنتج','الباركود','الفئة','سعر الشراء','سعر البيع','الكمية','حد التنبيه','الوحدة'];
+  const rows = products.map(p => [p.name,p.barcode||'',p.category||'عام',p.buyPrice??0,p.sellPrice??0,p.qty??0,p.minQty??0,p.unit||'قطعة']);
+  if(typeof XLSX !== 'undefined'){
+    const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    sheet['!cols'] = [{wch:28},{wch:18},{wch:18},{wch:14},{wch:14},{wch:12},{wch:14},{wch:12}];
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, 'المنتجات');
+    XLSX.writeFile(book, `منتجات-متجر-العشري-${new Date().toISOString().slice(0,10)}.xlsx`);
+    toast(`تم تنزيل ${products.length} منتج كملف Excel حقيقي`);
+    return;
+  }
+  toast('مكوّن Excel لم يكتمل تحميله، أعد فتح الصفحة وحاول مرة أخرى');
 }
 async function importProductsCsv(e){
   const file = e.target.files[0];
@@ -1292,7 +1299,23 @@ async function importProductsCsv(e){
       try{ text = new TextDecoder('windows-1256').decode(bytes); }
       catch(_e2){ text = new TextDecoder().decode(bytes); }
     }
-    const rows = parseCSV(text);
+    let rows;
+    const isXlsx = /\.xlsx?$/i.test(file.name || '');
+    if(isXlsx && typeof XLSX !== 'undefined'){
+      try{
+        const book = XLSX.read(bytes, { type:'array', cellDates:false });
+        const firstSheet = book.Sheets[book.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(firstSheet, { header:1, defval:'' });
+        const headers = (rawRows.shift() || []).map(h => MatgarUtils.mapCsvHeader(String(h)));
+        rows = rawRows.map(cells => {
+          const row = {};
+          headers.forEach((key, i) => { if(key) row[key] = cells[i] ?? ''; });
+          return row;
+        }).filter(row => String(row.name || '').trim());
+      }catch(_e){ rows = []; }
+    }else{
+      rows = parseCSV(text);
+    }
     if(rows.length === 0){ toast('تعذر قراءة الملف. احفظه بصيغة CSV UTF-8 وبنفس أعمدة النموذج'); e.target.value = ''; return; }
     if(!confirm(`سيتم إضافة ${rows.length} منتج جديد للنظام. متابعة؟`)) return;
     const newProducts = rows.map(r => ({
