@@ -685,7 +685,7 @@
         <button class="btn btn-ghost" id="downloadTemplateBtn" style="flex:0 0 auto;">نموذج الملف</button>
       </div>
       <button class="btn btn-primary btn-block" id="exportProductsBtn" style="margin-bottom:10px;">حفظ منتجات المنصة على الهاتف</button>
-      <div class="muted" style="margin:-4px 0 10px;line-height:1.6;">لأفضل نتيجة على الهاتف: افتح النموذج في Excel، عدّل الصفوف، ثم احفظه بصيغة <b>CSV UTF-8</b> وارفعه كما هو.</div>
+      <div class="muted" style="margin:-4px 0 10px;line-height:1.6;">الملف المُنزّل مُجهّز تلقائيًا لـ <b>Excel وGoogle Sheets</b> على الهاتف والكمبيوتر. عند الرفع، استخدم CSV كما هو بدون تغيير الترميز.</div>
       <div class="row between" style="margin-bottom:8px;">
         <div class="h2" style="margin:0;" id="prodMgmtTitle">المنتجات</div>
         <button class="btn btn-ghost btn-sm" id="toggleTrashBtn">🗑️ المحذوفات</button>
@@ -1247,7 +1247,16 @@ function downloadCsvTemplate(){
   downloadCsvFile(csv, 'نموذج-استيراد-منتجات.csv');
 }
 function downloadCsvFile(csv, filename){
-  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8' });
+  // Excel على بعض هواتف Android يتجاهل UTF-8 BOM ويفتح العربية كرموز Ø§.
+  // UTF-16LE مع BOM هو الترميز الأكثر توافقًا مع Excel وGoogle Sheets.
+  const source = '\uFEFF' + csv;
+  const bytes = new Uint8Array(source.length * 2);
+  for(let i = 0; i < source.length; i++){
+    const code = source.charCodeAt(i);
+    bytes[i * 2] = code & 0xff;
+    bytes[i * 2 + 1] = code >> 8;
+  }
+  const blob = new Blob([bytes], { type:'text/csv;charset=utf-16le' });
   const url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = filename; a.rel = 'noopener';
   document.body.appendChild(a); a.click(); a.remove();
@@ -1272,7 +1281,13 @@ async function importProductsCsv(e){
     const bytes = new Uint8Array(reader.result);
     let text = '';
     try{
-      text = new TextDecoder('utf-8', { fatal:true }).decode(bytes);
+      if(bytes[0] === 0xff && bytes[1] === 0xfe){
+        text = new TextDecoder('utf-16le').decode(bytes);
+      }else if(bytes[0] === 0xfe && bytes[1] === 0xff){
+        text = new TextDecoder('utf-16be').decode(bytes);
+      }else{
+        text = new TextDecoder('utf-8', { fatal:true }).decode(bytes);
+      }
     }catch(_e){
       try{ text = new TextDecoder('windows-1256').decode(bytes); }
       catch(_e2){ text = new TextDecoder().decode(bytes); }
