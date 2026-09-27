@@ -1316,17 +1316,44 @@ async function importProductsCsv(e){
     }else{
       rows = parseCSV(text);
     }
-    if(rows.length === 0){ toast('تعذر قراءة الملف. احفظه بصيغة CSV UTF-8 وبنفس أعمدة النموذج'); e.target.value = ''; return; }
-    if(!confirm(`سيتم إضافة ${rows.length} منتج جديد للنظام. متابعة؟`)) return;
-    const newProducts = rows.map(r => ({
+    if(rows.length === 0){ toast('تعذر قراءة الملف. استخدم ملف XLSX أو CSV بنفس أعمدة النموذج'); e.target.value = ''; return; }
+    const importedProducts = rows.map(r => ({
       id: uid(), name: r.name, barcode: r.barcode || '', category: r.category || 'عام',
       buyPrice: Math.max(0, importNumber(r.buyPrice)), sellPrice: Math.max(0, importNumber(r.sellPrice)),
       qty: Math.max(0, Math.floor(importNumber(r.qty))), minQty: Math.max(0, Math.floor(importNumber(r.minQty, 5))), unit: r.unit || 'قطعة'
     }));
-    const validProducts = newProducts.filter(p => p.name && p.name.trim());
+    const validProducts = importedProducts.filter(p => p.name && p.name.trim());
     if(!validProducts.length){ toast('لم نجد أسماء منتجات صالحة في الملف'); e.target.value = ''; return; }
-    const added = validProducts.length;
-    const importMove = { id: uid(), date: Date.now(), productId:null, productName:'استيراد جماعي', type:'in', qty: added, reason: `استيراد ${added} منتج من ملف` };
+    function mergeImportedProducts(existing, incoming){
+      const merged = existing.map(p => ({...p}));
+      const byBarcode = new Map(), byName = new Map();
+      const norm = value => String(value || '').trim().toLowerCase();
+      merged.forEach((p, index) => {
+        if(norm(p.barcode)) byBarcode.set(norm(p.barcode), index);
+        if(norm(p.name)) byName.set(norm(p.name), index);
+      });
+      let added = 0, updated = 0;
+      incoming.forEach(item => {
+        const barcode = norm(item.barcode);
+        const name = norm(item.name);
+        const index = (barcode && byBarcode.has(barcode)) ? byBarcode.get(barcode) : byName.get(name);
+        if(index === undefined){
+          merged.push({...item});
+          const newIndex = merged.length - 1;
+          if(barcode) byBarcode.set(barcode, newIndex);
+          if(name) byName.set(name, newIndex);
+          added += 1;
+        }else{
+          merged[index] = {...merged[index], ...item, id: merged[index].id, deleted:false};
+          updated += 1;
+        }
+      });
+      return { merged, added, updated };
+    }
+    const preview = mergeImportedProducts(state.products, validProducts);
+    if(!confirm(`مراجعة الملف:\n• ${preview.added} منتج جديد\n• ${preview.updated} منتج سيتم تحديثه\n\nسيتم تنفيذ العملية دفعة واحدة. متابعة؟`)) return;
+    let summary = preview;
+    const importMove = { id: uid(), date: Date.now(), productId:null, productName:'استيراد جماعي', type:'in', qty: validProducts.length, reason: `إضافة ${preview.added} وتحديث ${preview.updated} منتج` };
     try{
       if(db && storageMode === 'firebase'){
         // معاملة ذرية: بنضيف على أحدث نسخة من المنتجات والفئات وقت التنفيذ،
@@ -1341,8 +1368,11 @@ async function importProductsCsv(e){
           const liveCats     = catSnap.exists ? JSON.parse(catSnap.data().value) : ['عام'];
           const liveMoves    = movesSnap.exists ? JSON.parse(movesSnap.data().value) : [];
           const catSet = new Set(liveCats);
+          summary = mergeImportedProducts(liveProducts, validProducts);
           validProducts.forEach(p => catSet.add(p.category));
-          const mergedProducts = [...liveProducts, ...validProducts];
+          const mergedProducts = summary.merged;
+          importMove.qty = validProducts.length;
+          importMove.reason = `إضافة ${summary.added} وتحديث ${summary.updated} منتج`;
           liveMoves.unshift(importMove);
           tx.set(prodRef, { value: JSON.stringify(mergedProducts), updatedAt: Date.now() });
           tx.set(catRef, { value: JSON.stringify([...catSet]), updatedAt: Date.now() });
@@ -1352,17 +1382,18 @@ async function importProductsCsv(e){
           state.moves = liveMoves;
         });
       } else {
+        summary = mergeImportedProducts(state.products, validProducts);
         const catSet = new Set(state.categories);
         validProducts.forEach(p => catSet.add(p.category));
-        state.products = [...state.products, ...validProducts];
+        state.products = summary.merged;
         state.categories = [...catSet];
         state.moves.unshift(importMove);
         await save('products'); await save('categories'); await save('moves');
       }
-      logAudit('استيراد جماعي', 'products', { count: added });
+      logAudit('استيراد جماعي', 'products', { added: summary.added, updated: summary.updated });
       closeModal();
       renderAll();
-      toast(`تم استيراد ${added} منتج بنجاح`);
+      toast(`تمت العملية: إضافة ${summary.added} وتحديث ${summary.updated} منتج`);
     }catch(err){
       toast('تعذر إتمام الاستيراد، تأكد من الاتصال وحاول تاني');
     } finally { e.target.value = ''; }
