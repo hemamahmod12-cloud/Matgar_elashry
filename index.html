@@ -611,6 +611,7 @@
       </div>
       <div id="loginError" class="login-error" style="display:none;"></div>
       <button class="btn btn-primary btn-block" id="loginSubmitBtn">دخول</button>
+      <div id="offlineLoginHint" class="muted" style="text-align:center;font-size:11px;margin-top:12px;line-height:1.6;"></div>
     </div>
   </div>
 </div>
@@ -1246,7 +1247,7 @@ function downloadCsvTemplate(){
   downloadCsvFile(csv, 'نموذج-استيراد-منتجات.csv');
 }
 function downloadCsvFile(csv, filename){
-  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csv], { type:'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = url; a.download = filename; a.rel = 'noopener';
   document.body.appendChild(a); a.click(); a.remove();
@@ -1256,10 +1257,11 @@ function exportProductsCsv(){
   const q = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const products = activeProducts();
   if(!products.length){ toast('لا توجد منتجات متاحة للحفظ'); return; }
-  const lines = ['sep=,','name,barcode,category,buyPrice,sellPrice,qty,minQty,unit'];
-  products.forEach(p => lines.push([p.name,p.barcode||'',p.category||'عام',p.buyPrice??0,p.sellPrice??0,p.qty??0,p.minQty??0,p.unit||'قطعة'].map(q).join(',')));
+  // الفاصلة المنقوطة + رؤوس عربية + BOM = أفضل توافق مع Excel على Android وWindows
+  const lines = ['sep=;','اسم المنتج;الباركود;الفئة;سعر الشراء;سعر البيع;الكمية;حد التنبيه;الوحدة'];
+  products.forEach(p => lines.push([p.name,p.barcode||'',p.category||'عام',p.buyPrice??0,p.sellPrice??0,p.qty??0,p.minQty??0,p.unit||'قطعة'].map(q).join(';')));
   downloadCsvFile(lines.join('\r\n') + '\r\n', `منتجات-متجر-العشري-${new Date().toISOString().slice(0,10)}.csv`);
-  toast(`تم حفظ ${products.length} منتج على الهاتف`);
+  toast(`تم تنزيل ${products.length} منتج بصيغة Excel عربية متوافقة`);
 }
 async function importProductsCsv(e){
   const file = e.target.files[0];
@@ -1267,7 +1269,15 @@ async function importProductsCsv(e){
   if(file.size > 5 * 1024 * 1024){ toast('حجم الملف كبير، استخدم ملفًا أقل من 5 ميجابايت'); e.target.value = ''; return; }
   const reader = new FileReader();
   reader.onload = async () => {
-    const rows = parseCSV(reader.result);
+    const bytes = new Uint8Array(reader.result);
+    let text = '';
+    try{
+      text = new TextDecoder('utf-8', { fatal:true }).decode(bytes);
+    }catch(_e){
+      try{ text = new TextDecoder('windows-1256').decode(bytes); }
+      catch(_e2){ text = new TextDecoder().decode(bytes); }
+    }
+    const rows = parseCSV(text);
     if(rows.length === 0){ toast('تعذر قراءة الملف. احفظه بصيغة CSV UTF-8 وبنفس أعمدة النموذج'); e.target.value = ''; return; }
     if(!confirm(`سيتم إضافة ${rows.length} منتج جديد للنظام. متابعة؟`)) return;
     const newProducts = rows.map(r => ({
@@ -1275,7 +1285,9 @@ async function importProductsCsv(e){
       buyPrice: Math.max(0, importNumber(r.buyPrice)), sellPrice: Math.max(0, importNumber(r.sellPrice)),
       qty: Math.max(0, Math.floor(importNumber(r.qty))), minQty: Math.max(0, Math.floor(importNumber(r.minQty, 5))), unit: r.unit || 'قطعة'
     }));
-    const added = newProducts.length;
+    const validProducts = newProducts.filter(p => p.name && p.name.trim());
+    if(!validProducts.length){ toast('لم نجد أسماء منتجات صالحة في الملف'); e.target.value = ''; return; }
+    const added = validProducts.length;
     const importMove = { id: uid(), date: Date.now(), productId:null, productName:'استيراد جماعي', type:'in', qty: added, reason: `استيراد ${added} منتج من ملف` };
     try{
       if(db && storageMode === 'firebase'){
@@ -1291,8 +1303,8 @@ async function importProductsCsv(e){
           const liveCats     = catSnap.exists ? JSON.parse(catSnap.data().value) : ['عام'];
           const liveMoves    = movesSnap.exists ? JSON.parse(movesSnap.data().value) : [];
           const catSet = new Set(liveCats);
-          newProducts.forEach(p => catSet.add(p.category));
-          const mergedProducts = [...liveProducts, ...newProducts];
+          validProducts.forEach(p => catSet.add(p.category));
+          const mergedProducts = [...liveProducts, ...validProducts];
           liveMoves.unshift(importMove);
           tx.set(prodRef, { value: JSON.stringify(mergedProducts), updatedAt: Date.now() });
           tx.set(catRef, { value: JSON.stringify([...catSet]), updatedAt: Date.now() });
@@ -1303,8 +1315,8 @@ async function importProductsCsv(e){
         });
       } else {
         const catSet = new Set(state.categories);
-        newProducts.forEach(p => catSet.add(p.category));
-        state.products = [...state.products, ...newProducts];
+        validProducts.forEach(p => catSet.add(p.category));
+        state.products = [...state.products, ...validProducts];
         state.categories = [...catSet];
         state.moves.unshift(importMove);
         await save('products'); await save('categories'); await save('moves');
@@ -1317,7 +1329,7 @@ async function importProductsCsv(e){
       toast('تعذر إتمام الاستيراد، تأكد من الاتصال وحاول تاني');
     } finally { e.target.value = ''; }
   };
-  reader.readAsText(file, 'UTF-8');
+  reader.readAsArrayBuffer(file);
 }
 
 /* ---------------- cart state (in-memory only) ---------------- */
@@ -2856,6 +2868,10 @@ function renderLoginScreen(){
   pwInput.value = '';
   document.getElementById('l_fullname').value = '';
   document.getElementById('loginError').style.display = 'none';
+  const offlineHint = document.getElementById('offlineLoginHint');
+  if(offlineHint) offlineHint.textContent = navigator.onLine
+    ? 'بعد أول دخول ناجح على هذا الجهاز، يمكنك الدخول لاحقًا بدون إنترنت.'
+    : 'أنت بدون إنترنت. استخدم نفس اسم المستخدم وكلمة المرور التي نجحت بها سابقًا على هذا الجهاز.';
 }
 document.getElementById('togglePwBtn').addEventListener('click', () => {
   const pwInput = document.getElementById('l_password');

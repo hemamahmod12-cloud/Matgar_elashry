@@ -86,17 +86,36 @@
     return CSV_HEADER_MAP[raw.toLowerCase()] || CSV_HEADER_MAP[raw] || null;
   }
 
+  function csvRecords(text) {
+    const records = [];
+    let record = '', quoted = false;
+    const source = String(text || '').replace(/^\uFEFF/, '');
+    for (let i = 0; i < source.length; i += 1) {
+      const char = source[i];
+      if (char === '"' && source[i + 1] === '"') { record += '""'; i += 1; continue; }
+      if (char === '"') { quoted = !quoted; record += char; continue; }
+      if ((char === '\n' || char === '\r') && !quoted) {
+        if (char === '\r' && source[i + 1] === '\n') i += 1;
+        if (record.trim()) records.push(record);
+        record = '';
+        continue;
+      }
+      record += char;
+    }
+    if (record.trim()) records.push(record);
+    return records;
+  }
+
   function parseCSV(text) {
-    const clean = String(text || '').replace(/^\uFEFF/, '').replace(/\r/g, '');
-    let lines = clean.split('\n').filter(line => line.trim().length);
-    if (lines[0] && /^sep\s*=\s*[,;\t]$/i.test(lines[0].trim())) lines = lines.slice(1);
-    if (lines.length < 2) return [];
+    let records = csvRecords(text);
+    if (records[0] && /^sep\s*=\s*[,;\t]$/i.test(records[0].trim())) records = records.slice(1);
+    if (records.length < 2) return [];
     const delimiters = [',', ';', '\t'];
-    const delimiter = delimiters.sort((a, b) => csvCells(lines[0], b).length - csvCells(lines[0], a).length)[0];
-    const headers = csvCells(lines[0], delimiter).map(mapCsvHeader);
+    const delimiter = delimiters.sort((a, b) => csvCells(records[0], b).length - csvCells(records[0], a).length)[0];
+    const headers = csvCells(records[0], delimiter).map(mapCsvHeader);
     const rows = [];
-    for (let i = 1; i < lines.length; i += 1) {
-      const cells = csvCells(lines[i], delimiter);
+    for (let i = 1; i < records.length; i += 1) {
+      const cells = csvCells(records[i], delimiter);
       const row = {};
       headers.forEach((key, index) => { if (key) row[key] = (cells[index] || '').trim(); });
       if (row.name) rows.push(row);
