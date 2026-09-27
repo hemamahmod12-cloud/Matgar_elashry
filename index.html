@@ -515,6 +515,65 @@
   .pending-invoices strong{min-width:24px;height:24px;padding:2px 6px;display:inline-grid;place-items:center;color:#fff;background:#d97706;border-radius:999px;font-size:.8rem}
   .last-sync-text{margin-inline-start:auto;color:#6b7280;font-size:.76rem}
   @media(max-width:600px){.offline-status-bar{gap:8px;padding:8px 10px}.offline-status-separator{display:none}.last-sync-text{width:100%;margin-inline-start:0}}
+
+  /* شبكة المنتجات الفاخرة: بطاقات هادئة، واضحة، ومناسبة للمس والماوس */
+  .product-grid{display:grid;gap:14px;align-items:stretch;}
+  .pos-product-grid{grid-template-columns:repeat(auto-fill,minmax(155px,1fr));}
+  .admin-product-grid{grid-template-columns:repeat(auto-fill,minmax(255px,1fr));}
+  .product-tile{appearance:none;border:1px solid #dfe7e8;border-radius:18px;min-height:172px;padding:15px;text-align:right;font:inherit;color:var(--ink);background:linear-gradient(145deg,#fff 0%,#f9fbfa 100%);box-shadow:0 8px 22px rgba(16,42,67,.055);display:flex;flex-direction:column;gap:12px;cursor:pointer;position:relative;overflow:hidden;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease;}
+  .product-tile::after{content:'';position:absolute;inset:auto auto -34px -28px;width:104px;height:104px;border:1px solid rgba(196,154,82,.16);border-radius:50%;pointer-events:none;}
+  .product-tile:hover{transform:translateY(-4px);border-color:#83b9af;box-shadow:0 16px 30px rgba(16,42,67,.12);background:#fff;}
+  .product-tile:focus-visible,.admin-product-card:focus-visible{outline:3px solid rgba(17,122,115,.24);outline-offset:2px;}
+  .product-tile:active{transform:translateY(-1px) scale(.985);}
+  .product-tile.is-empty{opacity:.68;}
+  .product-tile-head,.product-tile-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative;z-index:1;}
+  .product-avatar{width:42px;height:42px;display:grid;place-items:center;flex:0 0 42px;border-radius:14px;background:linear-gradient(145deg,#e5f2ed,#d2e7e5);color:#0b6258;font-size:19px;font-weight:900;box-shadow:inset 0 0 0 1px rgba(17,122,115,.1);}
+  .product-category{max-width:calc(100% - 50px);padding:4px 8px;border-radius:999px;color:#5d766f;background:#f0f6f3;font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .product-tile-name{font-size:15px;font-weight:900;color:#173b4f;line-height:1.4;min-height:42px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;position:relative;z-index:1;}
+  .product-tile-footer{margin-top:auto;align-items:flex-end;}
+  .product-stock{font-size:10.5px;color:#71847f;font-weight:700;line-height:1.35;max-width:58%;}
+  .product-stock.is-low{color:#b26a18;}
+  .product-price{font-size:16px;color:#0f766e;white-space:nowrap;}
+  .admin-product-card{border:1px solid #dfe7e8;border-radius:18px;padding:16px;background:linear-gradient(145deg,#fff 0%,#f9fbfc 100%);box-shadow:0 8px 22px rgba(16,42,67,.055);cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;}
+  .admin-product-card:hover{transform:translateY(-3px);border-color:#83b9af;box-shadow:0 16px 30px rgba(16,42,67,.11);}
+  .admin-product-card.is-deleted{cursor:default;background:linear-gradient(145deg,#fff 0%,#fff9f8 100%);}
+  .admin-product-top{display:flex;align-items:center;gap:11px;min-width:0;}
+  .admin-product-heading{min-width:0;flex:1;}
+  .admin-product-heading h3{margin:0;color:#173b4f;font-size:15px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .admin-product-heading span{display:block;margin-top:3px;color:#84939a;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .admin-product-qty{text-align:center;padding-inline-start:8px;border-inline-start:1px solid #e5ecec;min-width:45px;}
+  .admin-product-qty b{display:block;color:#173b4f;font-size:18px;line-height:1.1;}
+  .admin-product-qty small{color:#84939a;font-size:10px;}
+  .admin-product-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid #edf1f1;}
+  .admin-product-meta span{display:flex;flex-direction:column;gap:2px;}
+  .admin-product-meta small{color:#89979b;font-size:10px;}
+  .admin-product-meta b{color:#506b68;font-size:13px;}
+  .admin-product-meta b.is-selling{color:#0f766e;}
+  .admin-product-status{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:25px;margin-top:11px;}
+  .admin-product-status .pill{white-space:nowrap;}
+  .product-no-expiry{font-size:10px;color:#9aa8a9;white-space:nowrap;}
+  .admin-product-hint{margin-top:12px;padding-top:10px;border-top:1px dashed #e5ecec;color:#99a6a7;font-size:10px;}
+  .admin-product-actions{margin-top:13px;gap:7px;}
+  #view-stock .card,#view-reports>.card{border-color:#dfe7e8;box-shadow:0 10px 26px rgba(16,42,67,.05);}
+  #view-stock .move-item{padding:13px 4px;border-bottom-color:#edf1f1;}
+  #view-stock .move-item .top{color:#173b4f;font-size:14px;}
+  #view-stock #lowStockBanner .card{border-radius:15px;box-shadow:none;}
+  #view-reports .stat-grid{gap:12px;}
+  #view-reports .stat-box{min-height:86px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;}
+  #view-reports .stat-box::after{content:'';position:absolute;left:-24px;bottom:-40px;width:90px;height:90px;border:1px solid rgba(17,122,115,.11);border-radius:50%;}
+  #view-reports .stat-box .v{position:relative;z-index:1;}
+  #view-reports .dashboard-grid{gap:14px;}
+  #view-reports .insight-card{box-shadow:0 8px 20px rgba(16,42,67,.045);}
+  #view-reports .card{border-radius:18px;}
+  #view-stock .h2,#view-reports .h2{color:#173b4f;}
+  #view-products>.search-wrap{margin-bottom:12px;}
+  #view-products>.row{gap:9px;}
+  #view-products>.muted{background:#f3f8f6;border:1px solid #dfece6;border-radius:12px;padding:9px 11px;color:#678079;}
+  #view-cashier>.chips{margin:14px 0;}
+  #view-cashier>.search-wrap input{min-height:50px;border-radius:15px;font-size:15px;}
+  #view-cashier>.search-wrap .barcode-camera-btn{min-height:50px;border-radius:14px;}
+  @media (min-width:760px) and (hover:hover){.pos-product-grid{grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:16px}.admin-product-grid{gap:16px}.product-tile{min-height:184px;padding:17px}.admin-product-card{padding:18px}}
+  @media (max-width:420px){.pos-product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.product-tile{min-height:158px;padding:12px;border-radius:15px}.product-tile-name{font-size:13.5px}.product-price{font-size:14px}.product-avatar{width:36px;height:36px;flex-basis:36px;border-radius:12px;font-size:16px}.product-category{font-size:9px;padding:3px 6px}.admin-product-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -592,7 +651,7 @@
       </div>
       <div class="chips" id="posChips"></div>
       <div id="parkedSection"></div>
-      <div id="posList" class="stack"></div>
+      <div id="posList" class="product-grid pos-product-grid"></div>
       <div id="posLoadMoreWrap"></div>
       <div id="cartSection"></div>
     </section>
@@ -630,7 +689,7 @@
         <div class="h2" style="margin:0;" id="prodMgmtTitle">المنتجات</div>
         <button class="btn btn-ghost btn-sm" id="toggleTrashBtn">🗑️ المحذوفات</button>
       </div>
-      <div id="prodMgmtList" class="stack"></div>
+      <div id="prodMgmtList" class="product-grid admin-product-grid"></div>
       <div id="prodLoadMoreWrap"></div>
     </section>
 
@@ -1368,15 +1427,24 @@ function renderPosList(){
     return;
   }
   const shown = list.slice(0, posRenderLimit);
-  wrap.innerHTML = shown.map(p => `
-    <div class="prod-item" data-add="${p.id}">
-      <div>
-        <div class="name">${esc(p.name)}</div>
-        <div class="sub">متبقي: ${p.qty} ${esc(p.unit || '')}</div>
-      </div>
-      <div class="price num">${money(p.sellPrice)}</div>
-    </div>
-  `).join('');
+  wrap.innerHTML = shown.map(p => {
+    const qty = Number(p.qty || 0);
+    const low = qty <= Number(p.minQty || 0);
+    const initial = esc(String(p.name || 'م').trim().charAt(0) || 'م');
+    return `
+      <button class="product-tile ${qty <= 0 ? 'is-empty' : ''}" data-add="${p.id}" type="button" aria-label="إضافة ${esc(p.name)} إلى السلة">
+        <span class="product-tile-head">
+          <span class="product-avatar">${initial}</span>
+          <span class="product-category">${esc(p.category || 'عام')}</span>
+        </span>
+        <span class="product-tile-name">${esc(p.name)}</span>
+        <span class="product-tile-footer">
+          <span class="product-stock ${low ? 'is-low' : ''}">${qty > 0 ? `متاح ${qty} ${esc(p.unit || '')}` : 'نفد المخزون'}</span>
+          <strong class="product-price num">${money(p.sellPrice)}</strong>
+        </span>
+      </button>
+    `;
+  }).join('');
   if(list.length > shown.length){
     moreWrap.innerHTML = `<button class="btn btn-ghost btn-block" id="posLoadMoreBtn" style="margin-top:6px;">عرض المزيد (متبقي ${list.length - shown.length})</button>`;
     document.getElementById('posLoadMoreBtn').addEventListener('click', () => { posRenderLimit += 60; renderPosList(); });
@@ -2085,25 +2153,31 @@ function renderProdMgmt(){
       if(dExp < 0) expBadge = '<span class="pill pill-bad">منتهي الصلاحية</span>';
       else if(dExp <= 7) expBadge = `<span class="pill pill-warn">صلاحية ${dExp} يوم</span>`;
     }
+    const initial = esc(String(p.name || 'م').trim().charAt(0) || 'م');
     return `
-    <div class="card" ${showingTrash ? '' : `data-edit="${p.id}" style="cursor:pointer;"`}>
-      <div class="row between">
-        <div>
-          <div class="name" style="font-weight:700;">${esc(p.name)}</div>
-          <div class="sub muted">${esc(p.category)} · شراء ${money(p.buyPrice)} · بيع ${money(p.sellPrice)}${p.supplier?(' · '+esc(p.supplier)):''}</div>
+    <article class="admin-product-card ${showingTrash ? 'is-deleted' : ''}" ${showingTrash ? '' : `data-edit="${p.id}" tabindex="0" role="button" aria-label="تعديل ${esc(p.name)}"`}>
+      <div class="admin-product-top">
+        <span class="product-avatar">${initial}</span>
+        <div class="admin-product-heading">
+          <h3>${esc(p.name)}</h3>
+          <span>${esc(p.category || 'عام')}${p.supplier ? ` · ${esc(p.supplier)}` : ''}</span>
         </div>
-        <div style="text-align:left;">
-          <div style="font-weight:900;">${p.qty} <span class="muted" style="font-weight:400;font-size:11.5px;">${esc(p.unit||'')}</span></div>
-          ${showingTrash ? '' : stockPill(p)}
-        </div>
+        <div class="admin-product-qty"><b>${p.qty}</b><small>${esc(p.unit || '')}</small></div>
       </div>
-      ${expBadge ? `<div style="margin-top:6px;">${expBadge}</div>` : ''}
+      <div class="admin-product-meta">
+        <span><small>شراء</small><b class="num">${money(p.buyPrice)}</b></span>
+        <span><small>بيع</small><b class="num is-selling">${money(p.sellPrice)}</b></span>
+      </div>
+      <div class="admin-product-status">
+        ${showingTrash ? '<span class="pill pill-bad">في سلة المحذوفات</span>' : stockPill(p)}
+        ${expBadge || '<span class="product-no-expiry">بدون تنبيه صلاحية</span>'}
+      </div>
       ${showingTrash ? `
-        <div class="row" style="margin-top:8px; gap:6px;">
+        <div class="row admin-product-actions">
           <button class="btn btn-outline btn-sm" data-restore="${p.id}" style="flex:1;">استرجاع</button>
           <button class="btn btn-danger btn-sm" data-purge="${p.id}" style="flex:1;">حذف نهائي</button>
-        </div>` : ''}
-    </div>
+        </div>` : '<div class="admin-product-hint">اضغط للتعديل · تحديث سريع وآمن</div>'}
+    </article>
   `;}).join('');
   if(list.length > shown.length){
     moreWrap.innerHTML = `<button class="btn btn-ghost btn-block" id="prodLoadMoreBtn" style="margin-top:6px;">عرض المزيد (متبقي ${list.length - shown.length})</button>`;
@@ -2131,6 +2205,10 @@ document.getElementById('prodMgmtList').addEventListener('click', async e => {
     if(p) logAudit('حذف منتج نهائي', 'products', { name:p.name });
     renderProdMgmt();
   }
+});
+document.getElementById('prodMgmtList').addEventListener('keydown', e => {
+  const card = e.target.closest('[data-edit]');
+  if(card && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); openProductForm(findProduct(card.getAttribute('data-edit'))); }
 });
 document.getElementById('addProdBtn').addEventListener('click', () => openProductForm(null));
 document.getElementById('downloadTemplateBtn').addEventListener('click', downloadCsvTemplate);
