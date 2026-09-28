@@ -1,32 +1,140 @@
-/* desktop-layout-fix.css
- * أضفه بعد ملفات CSS الحالية حتى يطبق التعديل فوق التنسيق القديم.
+/* Matgar Elashry — Premium cashier layout
+ * طبقة تصميم نهائية فوق التنسيقات الأساسية.
  */
 
-/* قائمة الأقسام: تظهر كل الأقسام الموجودة فعليًا في المنتجات */
-#posChips {
+:root {
+  --lux-navy: #102f46;
+  --lux-teal: #0d766d;
+  --lux-teal-soft: #e7f3f0;
+  --lux-gold: #b88a3b;
+  --lux-ink: #193448;
+  --lux-muted: #71838b;
+  --lux-line: #dfe8eb;
+  --lux-bg: #f4f7f8;
+  --lux-card: rgba(255, 255, 255, .96);
+  --lux-shadow: 0 12px 34px rgba(16, 47, 70, .075);
+}
+
+/* الخلفية والمساحة الرئيسية */
+body {
+  background:
+    radial-gradient(circle at 82% 0%, rgba(13, 118, 109, .08), transparent 28rem),
+    linear-gradient(145deg, #f1f5f6 0%, #f8fafb 48%, #eef3f5 100%);
+}
+
+main {
+  width: min(1500px, calc(100% - 48px));
+  max-width: none;
+  margin: 0 auto;
+  padding: 28px 0 112px;
+}
+
+/* منطقة الكاشير: عمود المنتجات + سلة ثابتة على الكمبيوتر */
+#view-cashier {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 370px);
+  grid-template-areas:
+    "search cart"
+    "categories cart"
+    "parked cart"
+    "products cart"
+    "more cart";
+  gap: 16px 24px;
+  align-items: start;
+}
+
+#view-cashier > .search-wrap { grid-area: search; }
+#view-cashier > .chips { grid-area: categories; }
+#view-cashier > #parkedSection { grid-area: parked; }
+#view-cashier > #posList { grid-area: products; }
+#view-cashier > #posLoadMoreWrap { grid-area: more; }
+#view-cashier > #cartSection {
+  grid-area: cart;
+  min-width: 0;
+  position: sticky;
+  top: 22px;
+  z-index: 3;
+}
+
+#view-cashier > #cartSection:empty { display: none; }
+
+/* البحث */
+#view-cashier > .search-wrap {
   width: 100%;
-  overflow: visible;
-  padding: 4px 0 10px;
-  margin-bottom: 8px;
+  margin: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(218, 229, 233, .9);
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(16, 47, 70, .045);
+}
+
+#view-cashier > .search-wrap input {
+  min-height: 52px;
+  border: 1px solid #d8e3e7;
+  border-radius: 14px;
+  color: var(--lux-ink);
+  font-size: 15px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
+}
+
+#view-cashier > .search-wrap .barcode-camera-btn {
+  min-height: 52px !important;
+  min-width: 52px;
+  border-radius: 14px !important;
+  border-color: #c9ddda;
+  background: var(--lux-teal-soft);
+  color: var(--lux-teal);
+}
+
+/* قائمة الأقسام: شريط أفقي منظم وليس شبكة ضيقة */
+#view-cashier > .chips,
+#posChips {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 2px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #bfd5d1 transparent;
 }
 
 #posChips .category-chip {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
+  min-width: 92px;
   min-height: 38px;
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 11px;
-  text-align: center;
-  line-height: 1.25;
+  padding: 8px 13px;
+  border: 1px solid #dbe5e8;
+  border-radius: 999px;
+  background: rgba(255,255,255,.95);
+  color: #536b75;
+  box-shadow: 0 4px 12px rgba(16, 47, 70, .045);
   font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+#posChips .category-chip:hover {
+  color: var(--lux-teal);
+  border-color: #a8cec8;
+  transform: translateY(-1px);
+}
+
+#posChips .category-chip.active {
+  border-color: var(--lux-teal);
+  background: linear-gradient(135deg, #117f75, #0c4f65);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(13, 118, 109, .22);
 }
 
 #posChips .category-chip span {
@@ -36,186 +144,222 @@
   height: 21px;
   padding: 0 5px;
   border-radius: 99px;
-  background: #eef6f4;
-  color: #0b7668;
+  background: #edf5f3;
+  color: var(--lux-teal);
   font-size: 10px;
   font-weight: 900;
 }
 
 #posChips .category-chip.active span {
-  background: rgba(255, 255, 255, .2);
+  background: rgba(255,255,255,.2);
   color: #fff;
 }
 
-/* شبكة ثابتة ومتوازنة على شاشات الكمبيوتر */
+/* شبكة المنتجات: بطاقات موحدة، هادئة، تستغل العرض */
 #posList.pos-product-grid,
-.pos-product-grid {
+#view-cashier > #posList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-rows: 1fr;
   align-items: stretch;
   gap: 14px;
   width: 100%;
+  min-width: 0;
 }
 
 #posList .product-tile {
   width: 100%;
   min-width: 0;
-  min-height: 184px;
+  min-height: 166px;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
+  gap: 10px;
   padding: 15px;
+  border: 1px solid var(--lux-line);
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 100% 100%, rgba(13,118,109,.045), transparent 8rem),
+    var(--lux-card);
+  color: var(--lux-ink);
+  box-shadow: var(--lux-shadow);
   text-align: right;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 
-#posList .product-tile-name {
-  min-height: 44px;
-  max-height: 44px;
-  line-height: 1.55;
-  overflow: hidden;
-  word-break: break-word;
+#posList .product-tile::after {
+  width: 88px;
+  height: 88px;
+  right: auto;
+  left: -30px;
+  bottom: -34px;
+  border-color: rgba(184,138,59,.13);
 }
 
+#posList .product-tile:hover {
+  transform: translateY(-3px);
+  border-color: #a8cec8;
+  box-shadow: 0 18px 34px rgba(16, 47, 70, .12);
+}
+
+#posList .product-tile-head,
 #posList .product-tile-footer {
-  min-height: 32px;
-  margin-top: auto;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
-#posList .product-stock,
-#posList .product-price {
+#posList .product-avatar {
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #e8f4f1, #d7ebe7);
+  color: var(--lux-teal);
+  font-size: 17px;
+  box-shadow: inset 0 0 0 1px rgba(13,118,109,.1);
+}
+
+#posList .product-category {
+  max-width: calc(100% - 48px);
+  padding: 4px 8px;
+  border: 1px solid #e5efed;
+  border-radius: 999px;
+  background: #f2f8f6;
+  color: #647c78;
+  font-size: 10px;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* يمنع تمدد عمود السلة أو ضغط شبكة المنتجات */
-#view-cashier {
-  align-items: start;
+#posList .product-tile-name {
+  position: relative;
+  z-index: 1;
+  min-height: 45px;
+  max-height: 45px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--lux-ink);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.6;
+  word-break: break-word;
 }
 
-#view-cashier > #posList {
-  min-width: 0;
+#posList .product-tile-footer {
+  min-height: 30px;
+  margin-top: auto;
+  align-items: flex-end;
 }
 
-@media (min-width: 1100px) {
+#posList .product-stock,
+#posList .product-price {
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#posList .product-stock { color: var(--lux-muted); font-size: 10.5px; font-weight: 700; }
+#posList .product-stock.is-low { color: #a56c1e; }
+#posList .product-price { color: var(--lux-teal); font-size: 15px; font-weight: 900; }
+#posList .product-tile.is-empty { opacity: .72; }
+
+/* السلة */
+#view-cashier > #cartSection .cart-card {
+  margin: 0 !important;
+  border: 1px solid #d9e5e8;
+  border-radius: 20px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 14px 34px rgba(16,47,70,.09);
+}
+
+/* الكمبيوتر العريض */
+@media (min-width: 1200px) {
   #posList.pos-product-grid,
-  .pos-product-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+  #view-cashier > #posList { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
-@media (min-width: 1450px) {
+@media (min-width: 1560px) {
   #posList.pos-product-grid,
-  .pos-product-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
+  #view-cashier > #posList { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
+/* التابلت */
+@media (min-width: 760px) and (max-width: 1199px) {
+  main { width: min(100% - 36px, 1050px); }
+  #view-cashier { grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; }
+}
+
+/* الهاتف: عمودان دائمًا للبطاقات، دون ضغط أو تكديس */
 @media (max-width: 759px) {
-  #posChips {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
-    justify-content: stretch;
-    padding: 5px 2px 12px;
-    gap: 9px;
+  main { width: 100%; padding: 14px 12px 104px; }
+
+  #view-cashier {
+    display: block;
   }
 
-  #posChips .category-chip {
-    flex: none;
-    width: auto;
-    min-width: 0;
-    min-height: 42px;
-    border-radius: 14px;
-    box-shadow: 0 5px 14px rgba(12,41,64,.055);
+  #view-cashier > .search-wrap,
+  #view-cashier > .chips,
+  #view-cashier > #parkedSection,
+  #view-cashier > #posList,
+  #view-cashier > #posLoadMoreWrap,
+  #view-cashier > #cartSection {
+    width: 100%;
+    margin-bottom: 13px;
+  }
+
+  #view-cashier > #cartSection {
+    position: static;
   }
 
   #posList.pos-product-grid,
-  .pos-product-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  #view-cashier > #posList {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     grid-auto-rows: auto;
     gap: 10px;
   }
 
   #posList .product-tile {
     min-height: 158px;
-    padding: 12px;
+    padding: 11px;
+    border-radius: 16px;
+    gap: 8px;
   }
+
+  #posList .product-tile-name {
+    min-height: 42px;
+    max-height: 42px;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  #posList .product-avatar {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 11px;
+    font-size: 15px;
+  }
+
+  #posList .product-category { font-size: 9px; padding: 3px 6px; }
+  #posList .product-price { font-size: 13px; }
+  #posList .product-stock { font-size: 9px; }
 }
 
-/* ===== Royal calm navigation and menu polish ===== */
-#posChips {
-  max-width: 920px;
-  margin-inline: auto;
-  padding-top: 6px;
-}
-#posChips .category-chip {
-  border: 1px solid #dfe8e8;
-  background: linear-gradient(145deg, #ffffff 0%, #f6faf9 100%);
-  color: #31545a;
-  font-weight: 800;
-  letter-spacing: -.1px;
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
-}
-#posChips .category-chip:hover,
-#posChips .category-chip:focus-visible {
-  transform: translateY(-2px);
-  border-color: #9bc9c2;
-  box-shadow: 0 9px 20px rgba(12,41,64,.10);
-  outline: none;
-}
-#posChips .category-chip.active {
-  background: linear-gradient(135deg, #0f766e 0%, #123f58 100%);
-  border-color: #0f766e;
-  box-shadow: 0 10px 21px rgba(15,118,110,.20);
-}
-#posChips .category-chip span { background: #e7f2ef; color: #0f766e; }
-#posChips .category-chip.active span { background: rgba(255,255,255,.18); color: #fff; }
-
-nav.tabbar {
-  border: 1px solid rgba(255,255,255,.16);
-  border-radius: 22px 22px 0 0;
-  padding: 5px 7px 4px;
-  background: linear-gradient(180deg, rgba(12,39,58,.98), rgba(8,48,66,.98));
-  box-shadow: 0 -12px 30px rgba(8,31,48,.18);
-}
-nav.tabbar button {
-  border-radius: 15px;
-  min-height: 54px;
-  padding: 7px 4px 6px;
-  gap: 3px;
-  color: #a9c1c8;
-  transition: background .2s ease, color .2s ease, transform .2s ease;
-}
-nav.tabbar button .ic { font-size: 20px; line-height: 1; }
-nav.tabbar button.active { color: #fff; background: linear-gradient(145deg, rgba(196,154,82,.28), rgba(17,122,115,.26)); }
-nav.tabbar button.active .ic { transform: translateY(-2px) scale(1.05); }
-nav.tabbar button.active::before { display: none; }
-
-.login-screen { isolation: isolate; }
-.login-card-wrap { width: min(100%, 430px); }
-.login-card { position: relative; overflow: hidden; background: rgba(255,255,255,.94); backdrop-filter: blur(18px); }
-.login-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, #c49a52, #117a73, #123b55); }
-.login-card .field { margin-bottom: 14px; }
-.login-card label { color: #526773; font-size: 12px; letter-spacing: .1px; }
-.login-card input { background: #fbfdfd; border-color: #dbe6e7; }
-.login-card input:focus { background: #fff; }
-.login-card #loginSubmitBtn { margin-top: 5px; min-height: 48px; font-size: 15px; }
-.login-error { border-radius: 12px; line-height: 1.65; }
-
-@media (min-width: 760px) and (hover:hover) {
-  nav.tabbar { border-radius: 0 24px 24px 0; padding: 88px 12px 18px; background: linear-gradient(180deg, #0b2238 0%, #0a334c 100%); }
-  nav.tabbar button { min-height: 58px; justify-content: flex-start; padding-inline: 15px; }
-  nav.tabbar button.active { background: linear-gradient(90deg, rgba(196,154,82,.25), rgba(17,122,115,.24)); }
-}
-
-@media (max-width: 759px) {
-  nav.tabbar { right: 50%; bottom: 10px; width: calc(100% - 20px); max-width: 440px; transform: translateX(50%); border-radius: 22px; }
-  #app { padding-bottom: 84px; }
-  .checkout-bar { bottom: 82px; border-radius: 18px 18px 0 0; }
-  .login-hero .brand { font-size: 23px; }
-  .login-hero .tag { font-size: 12px; }
+@media (max-width: 360px) {
+  #posList .product-tile { padding: 9px; }
+  #posList .product-tile-name { font-size: 11.5px; }
+  #posList .product-price { font-size: 12px; }
 }
