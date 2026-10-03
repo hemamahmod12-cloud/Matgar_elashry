@@ -172,6 +172,22 @@
   .pay-row{display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:8px;font-size:12px;}
   .pay-track{height:7px;background:#edf2f4;border-radius:99px;overflow:hidden;}
   .pay-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#117a73,#4b9f96);}
+  .page-context{min-width:0;flex:1;margin-inline:18px;display:flex;flex-direction:column;gap:1px;}
+  .page-context strong{font-size:15px;font-weight:900;color:#fff;line-height:1.2;}
+  .page-context span{font-size:10px;color:rgba(255,255,255,.68);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 16px;padding:0 2px 12px;border-bottom:1px solid #dfe7ec;}
+  .page-head h1{margin:0;color:#173b4f;font-size:22px;font-weight:900;letter-spacing:-.45px;}
+  .page-head p{margin:4px 0 0;color:#7b8b95;font-size:12px;}
+  .page-head .page-mark{width:44px;height:44px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,#e5f2ed,#d8e8ef);font-size:22px;box-shadow:inset 0 0 0 1px rgba(17,122,115,.1);}
+  @media (max-width:520px){
+    .page-context{margin-inline:10px;}
+    .page-context strong{font-size:13px;}
+    .page-context span{font-size:9px;}
+    .page-head{align-items:center;margin-bottom:12px;padding-bottom:10px;}
+    .page-head h1{font-size:18px;}
+    .page-head p{font-size:11px;}
+    .page-head .page-mark{width:38px;height:38px;border-radius:12px;font-size:19px;}
+  }
   @media (max-width:759px){
     .report-hero{padding:16px;align-items:flex-start;}
     .report-title{font-size:18px;}
@@ -627,6 +643,7 @@
         <div class="date" id="todayDate"></div>
       </div>
     </div>
+    <div class="page-context" aria-live="polite"><strong id="pageTitle">نقطة البيع</strong><span id="pageSubtitle">إنشاء الفواتير وإتمام البيع بسرعة</span></div>
     <button class="gear" id="settingsBtn">⚙</button>
   </header>
 
@@ -644,6 +661,7 @@
 
     <!-- ===== CASHIER VIEW ===== -->
     <section class="view active" id="view-cashier">
+      <div class="page-head"><div><h1>نقطة البيع</h1><p>اختر المنتجات وأتمم الفاتورة من شاشة واحدة</p></div><div class="page-mark">🧾</div></div>
       <div class="search-wrap" style="display:flex; gap:8px; align-items:center;">
         <div style="position:relative; flex:1;">
           <input id="posSearch" placeholder="ابحث بالاسم أو الباركود">
@@ -660,6 +678,7 @@
 
     <!-- ===== STOCK VIEW ===== -->
     <section class="view" id="view-stock">
+      <div class="page-head"><div><h1>المخزون والحركات</h1><p>تابع الكميات وسجل الإضافات والنواقص</p></div><div class="page-mark">📦</div></div>
       <div id="lowStockBanner"></div>
       <div class="row between" style="margin-bottom:10px;">
         <div class="h2" style="margin:0;">حركة المخزون</div>
@@ -673,6 +692,7 @@
 
     <!-- ===== PRODUCTS VIEW ===== -->
     <section class="view" id="view-products">
+      <div class="page-head"><div><h1>إدارة المنتجات</h1><p>أضف وعدّل واستورد مئات الأصناف دفعة واحدة</p></div><div class="page-mark">🏷️</div></div>
       <div class="search-wrap">
         <input id="prodSearch" placeholder="ابحث عن منتج">
         <span class="sic">🔍</span>
@@ -697,6 +717,7 @@
 
     <!-- ===== REPORTS VIEW ===== -->
     <section class="view" id="view-reports">
+      <div class="page-head"><div><h1>التقارير والتحليلات</h1><p>قراءة المبيعات والمصروفات وحالة المتجر</p></div><div class="page-mark">📊</div></div>
       <div class="report-hero card">
         <div>
           <div class="report-eyebrow">لوحة الإدارة · الأداء التشغيلي</div>
@@ -2894,6 +2915,20 @@ function openSaleDetail(saleId){
 }
 
 /* ================= NAV ================= */
+const PAGE_CONTEXT = {
+  cashier: ['نقطة البيع','إنشاء الفواتير وإتمام البيع بسرعة'],
+  stock: ['المخزون والحركات','متابعة الكميات والإضافات والنواقص'],
+  products: ['إدارة المنتجات','إضافة وتعديل واستيراد الأصناف'],
+  reports: ['التقارير والتحليلات','قراءة أداء المتجر والمبيعات']
+};
+function updatePageContext(view){
+  const context = PAGE_CONTEXT[view] || PAGE_CONTEXT.cashier;
+  const title = document.getElementById('pageTitle');
+  const subtitle = document.getElementById('pageSubtitle');
+  if(title) title.textContent = context[0];
+  if(subtitle) subtitle.textContent = context[1];
+  document.title = `${context[0]} · ${state.settings.storeName || 'متجري'}`;
+}
 document.querySelector('nav.tabbar').addEventListener('click', e => {
   const btn = e.target.closest('button[data-view]');
   if(!btn || btn.classList.contains('hidden')) return;
@@ -2901,8 +2936,10 @@ document.querySelector('nav.tabbar').addEventListener('click', e => {
   btn.classList.add('active');
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + btn.getAttribute('data-view')).classList.add('active');
-  document.getElementById('checkoutBar').style.display = (btn.getAttribute('data-view')==='cashier' && cart.length) ? 'block' : 'none';
-  if(btn.getAttribute('data-view') === 'reports') renderReports();
+  const view = btn.getAttribute('data-view');
+  updatePageContext(view);
+  document.getElementById('checkoutBar').style.display = (view==='cashier' && cart.length) ? 'block' : 'none';
+  if(view === 'reports') renderReports();
 });
 
 /* ================= AUTH / LOGIN ================= */
@@ -2917,6 +2954,7 @@ function applyRolePermissions(){
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-cashier').classList.add('active');
   }
+  updatePageContext(document.querySelector('nav.tabbar button.active')?.getAttribute('data-view') || 'cashier');
 }
 
 function renderLoginScreen(){
@@ -2961,6 +2999,7 @@ function showApp(){
   document.getElementById('app').style.display = 'flex';
   applyRolePermissions();
   renderAll();
+  updatePageContext(document.querySelector('nav.tabbar button.active')?.getAttribute('data-view') || 'cashier');
   startRealtimeSync();
   if(currentUser){
     logAudit('تسجيل دخول', 'session', { username: currentUser.username });
