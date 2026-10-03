@@ -175,6 +175,8 @@
   .page-context{min-width:0;flex:1;margin-inline:18px;display:flex;flex-direction:column;gap:1px;}
   .page-context strong{font-size:15px;font-weight:900;color:#fff;line-height:1.2;}
   .page-context span{font-size:10px;color:rgba(255,255,255,.68);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .shift-badge{border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;border-radius:999px;padding:7px 10px;font:700 11px inherit;cursor:pointer;white-space:nowrap;}
+  .shift-badge.open{background:rgba(93,190,153,.25);border-color:rgba(167,235,202,.5);}
   .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:0 0 16px;padding:0 2px 12px;border-bottom:1px solid #dfe7ec;}
   .page-head h1{margin:0;color:#173b4f;font-size:22px;font-weight:900;letter-spacing:-.45px;}
   .page-head p{margin:4px 0 0;color:#7b8b95;font-size:12px;}
@@ -644,7 +646,7 @@
       </div>
     </div>
     <div class="page-context" aria-live="polite"><strong id="pageTitle">نقطة البيع</strong><span id="pageSubtitle">إنشاء الفواتير وإتمام البيع بسرعة</span></div>
-    <button class="gear" id="settingsBtn">⚙</button>
+    <div class="row" style="gap:7px;flex:0 0 auto;"><button class="shift-badge" id="shiftBadge" type="button">وردية غير مفتوحة</button><button class="gear" id="settingsBtn">⚙</button></div>
   </header>
 
   <section id="offlineStatusBar" class="offline-status-bar" role="status" aria-live="polite" dir="rtl">
@@ -733,6 +735,7 @@
         <div class="chip" data-range="all">الكل</div>
       </div>
       <div class="stat-grid" id="statGrid"></div>
+      <div class="card" id="shiftSummary" style="margin-bottom:12px;"></div>
       <div class="dashboard-grid" id="dashboardInsights"></div>
       <div class="card" style="margin-bottom:10px;">
         <div class="h2">الأكثر مبيعًا</div>
@@ -796,8 +799,8 @@
 /* ---------------- storage layer ---------------- */
 // توافق كامل مع قاعدة البيانات القديمة — لا تغيّر أسماء هذه المفاتيح أو مساراتها.
 // كل البيانات تظل داخل storeData/{key} كما هي في Firebase الحالي.
-const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'categories', settings:'settings', users:'users', suppliers:'suppliers', parked:'parked', expenses:'expenses' };
-let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, users: [], suppliers: [], parked: [], expenses: [] };
+const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'categories', settings:'settings', users:'users', suppliers:'suppliers', parked:'parked', expenses:'expenses', shifts:'shifts' };
+let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, users: [], suppliers: [], parked: [], expenses: [], shifts: [] };
 window.MatgarAppState = state;
 // يتحول إلى true فقط بعد اكتمال الترحيل واختبار Cloud Functions والـ Collections الجديدة.
 const COLLECTIONS_BACKEND_ENABLED = false;
@@ -1096,7 +1099,7 @@ async function loadAll(){
     // من Firebase للعمل في محاولة لاحقة.
     firebaseReadFailed = false;
     const results = await Promise.all(Object.values(KEYS).map(k => storageGet(k).catch(() => null)));
-    const [p, s, m, c, st, u, sup, pk, ex] = results;
+    const [p, s, m, c, st, u, sup, pk, ex, sh] = results;
     state.products   = p  ? JSON.parse(p)  : seedProducts();
     state.sales       = s  ? JSON.parse(s)  : [];
     state.moves       = m  ? JSON.parse(m)  : [];
@@ -1106,6 +1109,7 @@ async function loadAll(){
     state.suppliers   = sup ? JSON.parse(sup) : [];
     state.parked       = pk ? JSON.parse(pk) : [];
     state.expenses     = ex ? JSON.parse(ex) : [];
+    state.shifts       = sh ? JSON.parse(sh) : [];
     storageOK = true;
     // القراءة السحابية الأساسية تعمل حتى لو تعذر مستند اختياري.
     storageMode = !navigator.onLine ? 'browser-offline' : (firebaseReadFailed ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser')));
@@ -1203,7 +1207,7 @@ async function maybeAutoBackup(){
     const marker = await db.collection('storeData').doc('lastAutoBackupAt').get();
     const lastAt = marker.exists ? marker.data().value : 0;
     if(Date.now() - (lastAt||0) < 24*60*60*1000) return; // اتاخدت نسخة في آخر 24 ساعة
-    const backup = { exportedAt: Date.now(), products: state.products, sales: state.sales, moves: state.moves, categories: state.categories, settings: state.settings, users: state.users.map(u => ({ id:u.id, name:u.name, username:u.username, role:u.role })), suppliers: state.suppliers, expenses: state.expenses };
+    const backup = { exportedAt: Date.now(), products: state.products, sales: state.sales, moves: state.moves, categories: state.categories, settings: state.settings, users: state.users.map(u => ({ id:u.id, name:u.name, username:u.username, role:u.role })), suppliers: state.suppliers, expenses: state.expenses, shifts: state.shifts };
     await db.collection('backups').add(backup);
     await db.collection('storeData').doc('lastAutoBackupAt').set({ value: Date.now() });
     await pruneOldBackups(30); // نحتفظ بآخر 30 نسخة بس، ومسح الأقدم عشان مساحة التخزين متتراكمش بلا حد
@@ -1891,6 +1895,7 @@ async function confirmSaleViaCollections(payment){
 async function confirmSale(options = {}){
   const fromOfflineQueue = options.fromOfflineQueue === true;
   const silent = options.silent === true;
+  const saleShiftId = fromOfflineQueue ? (options.payload?.shiftId || null) : (currentOpenShift()?.id || null);
   if(cart.length === 0 || saleInProgress) return null;
   if(!fromOfflineQueue && !navigator.onLine){
     if(!window.MatgarOfflineQueue){ toast('التخزين المحلي غير متاح؛ لم يتم حفظ البيع'); return null; }
@@ -1917,7 +1922,8 @@ async function confirmSale(options = {}){
       total: payment.total,
       paymentMethod,
       received: payment.received,
-      change: payment.change
+      change: payment.change,
+      shiftId: saleShiftId
     });
     cart = [];
     closeModal();
@@ -2006,7 +2012,7 @@ async function confirmSale(options = {}){
         sale = {
           id: uid(), invoiceNo, date: Date.now(), clientOperationId: activeOfflineOperationId || null,
           items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-          subtotal, discount, tax, total, paymentMethod, received, change,
+          subtotal, discount, tax, total, paymentMethod, received, change, shiftId:saleShiftId,
           cashierName: currentUser ? currentUser.name : '', returned:false
         };
         cartLines.forEach(c => {
@@ -2045,7 +2051,7 @@ async function confirmSale(options = {}){
         sale = {
           id: uid(), invoiceNo, date: Date.now(), clientOperationId: activeOfflineOperationId || null,
           items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-          subtotal, discount, tax, total, paymentMethod, received, change,
+          subtotal, discount, tax, total, paymentMethod, received, change, shiftId:saleShiftId,
           cashierName: currentUser ? currentUser.name : '', returned:false
         };
         cartLines.forEach(c => {
@@ -2059,7 +2065,18 @@ async function confirmSale(options = {}){
         await save('products'); await save('moves'); await save('sales'); await save('settings');
       }
     }
-    logAudit('بيع فاتورة', 'sales', { invoiceNo: sale.invoiceNo, total: sale.total, clientOperationId: activeOfflineOperationId || null });
+    if(sale?.shiftId){
+      const shift = (state.shifts||[]).find(item => item.id === sale.shiftId);
+      if(shift && !shift.closedSaleIds?.includes(sale.id)){
+        shift.closedSaleIds = [...(shift.closedSaleIds||[]), sale.id];
+        shift.salesCount = Number(shift.salesCount||0) + 1;
+        shift.totalSales = Number(shift.totalSales||0) + Number(sale.total||0);
+        if(sale.paymentMethod === 'نقدي') shift.cashSales = Number(shift.cashSales||0) + Number(sale.total||0);
+        else shift.cardSales = Number(shift.cardSales||0) + Number(sale.total||0);
+        await save('shifts'); updateShiftBadge();
+      }
+    }
+    logAudit('بيع فاتورة', 'sales', { invoiceNo: sale.invoiceNo, total: sale.total, shiftId: sale.shiftId || null, clientOperationId: activeOfflineOperationId || null });
     if(!silent) showReceipt(sale);
     if(!fromOfflineQueue){
       cart = [];
@@ -2226,7 +2243,7 @@ function showReceipt(sale){
       <div class="rline"><span>الباقي</span><span class="num">${money(sale.change)}</span></div>
     </div>
     <div class="row" style="margin-top:12px;">
-      <button class="btn btn-outline btn-block" id="printReceiptBtn">طباعة</button>
+      <button class="btn btn-outline btn-block" id="printReceiptBtn">🖨️ طباعة الفاتورة كاملة</button>
       <button class="btn btn-primary btn-block" data-close>تم</button>
     </div>
   `);
@@ -2696,6 +2713,11 @@ function renderReports(){
     <div class="stat-box"><div class="v num">${money(netProfit)}</div><div class="l">صافي الربح</div></div>
     <div class="stat-box"><div class="v num">${activeProducts().length}</div><div class="l">عدد المنتجات</div></div>
   `;
+  const currentShift = currentOpenShift();
+  const shiftSummary = document.getElementById('shiftSummary');
+  if(shiftSummary) shiftSummary.innerHTML = currentShift
+    ? `<div class="row between"><div><div class="h2" style="margin:0;">الوردية الحالية #${currentShift.shiftNo}</div><div class="muted">بدأت ${fmtDateShort(currentShift.openedAt)} · ${currentShift.salesCount||0} فاتورة</div></div><strong class="num" style="color:var(--primary);">${money(currentShift.totalSales||0)}</strong></div>`
+    : `<div class="row between"><div><div class="h2" style="margin:0;">لا توجد وردية مفتوحة</div><div class="muted">افتح وردية من الزر أعلى الصفحة لتتبع النقد والمبيعات.</div></div><button class="btn btn-outline btn-sm" onclick="openShiftManager()">فتح وردية</button></div>`;
   const periodLabel = document.getElementById('reportPeriodLabel');
   if(periodLabel) periodLabel.textContent = `ملخص ${reportRangeLabel()} · آخر تحديث ${fmtDateShort(Date.now())}`;
   const lowCount = activeProducts().filter(p => p.qty <= p.minQty).length;
@@ -3000,6 +3022,7 @@ function showApp(){
   applyRolePermissions();
   renderAll();
   updatePageContext(document.querySelector('nav.tabbar button.active')?.getAttribute('data-view') || 'cashier');
+  updateShiftBadge();
   startRealtimeSync();
   if(currentUser){
     logAudit('تسجيل دخول', 'session', { username: currentUser.username });
@@ -3175,6 +3198,57 @@ document.getElementById('loginSubmitBtn').addEventListener('click', async () => 
     errEl.style.display = 'block';
   }
 });
+
+/* ================= SHIFTS ================= */
+function currentOpenShift(){
+  const userId = currentUser?.id;
+  return (state.shifts || []).find(shift => shift.status === 'open' && (!userId || shift.openedById === userId)) || null;
+}
+function updateShiftBadge(){
+  const badge = document.getElementById('shiftBadge');
+  if(!badge) return;
+  const shift = currentOpenShift();
+  badge.classList.toggle('open', !!shift);
+  badge.textContent = shift ? `وردية #${shift.shiftNo} · ${money(shift.totalSales||0)}` : 'وردية غير مفتوحة';
+  badge.title = shift ? 'إدارة الوردية الحالية' : 'فتح وردية جديدة';
+}
+function shiftSales(shift){ return (state.sales||[]).filter(s => s.shiftId === shift.id && !s.returned); }
+function openShiftManager(){
+  const shift = currentOpenShift();
+  if(!shift){
+    openModal(`<div class="modal-title">فتح وردية جديدة</div>
+      <div class="muted" style="margin-bottom:12px;">سجّل رصيد بداية الدرج حتى يظهر لك النقد المتوقع عند الإغلاق.</div>
+      <div class="field"><label>الرصيد الافتتاحي</label><input id="shiftOpeningCash" type="number" inputmode="decimal" value="0"></div>
+      <div class="field"><label>ملاحظة (اختياري)</label><input id="shiftOpeningNote" placeholder="وردية الصباح"></div>
+      <button class="btn btn-primary btn-block" id="openShiftBtn">فتح الوردية</button>`);
+    document.getElementById('openShiftBtn').addEventListener('click', async () => {
+      const openingCash = Math.max(0, Number(document.getElementById('shiftOpeningCash').value) || 0);
+      const shift = { id:uid(), shiftNo: (state.shifts||[]).length + 1, status:'open', openedAt:Date.now(), openedById:currentUser?.id||'', openedByName:currentUser?.name||'', openingCash, openingNote:document.getElementById('shiftOpeningNote').value.trim(), totalSales:0, cashSales:0, cardSales:0, salesCount:0 };
+      state.shifts = [shift, ...(state.shifts||[])];
+      await save('shifts'); closeModal(); updateShiftBadge(); toast(`تم فتح الوردية #${shift.shiftNo}`);
+    });
+    return;
+  }
+  const sales = shiftSales(shift);
+  const cashSales = sales.filter(s => s.paymentMethod === 'نقدي').reduce((sum,s)=>sum+Number(s.total||0),0);
+  const expectedCash = Number(shift.openingCash||0) + cashSales;
+  openModal(`<div class="modal-title">الوردية #${shift.shiftNo}</div>
+    <div class="card" style="margin-bottom:12px;"><div class="rline"><span>بدأت</span><b>${fmtDateShort(shift.openedAt)}</b></div><div class="rline"><span>عدد الفواتير</span><b>${sales.length}</b></div><div class="rline"><span>إجمالي المبيعات</span><b>${money(sales.reduce((n,s)=>n+Number(s.total||0),0))}</b></div><div class="rline"><span>النقد المتوقع</span><b>${money(expectedCash)}</b></div></div>
+    <div class="field"><label>النقد الفعلي عند الإغلاق</label><input id="shiftClosingCash" type="number" inputmode="decimal" value="${expectedCash}"></div>
+    <button class="btn btn-danger btn-block" id="closeShiftBtn">إغلاق الوردية وطباعة ملخصها</button>`);
+  document.getElementById('closeShiftBtn').addEventListener('click', async () => {
+    const closingCash = Math.max(0, Number(document.getElementById('shiftClosingCash').value) || 0);
+    shift.status = 'closed'; shift.closedAt = Date.now(); shift.closingCash = closingCash; shift.expectedCash = expectedCash; shift.cashDifference = closingCash - expectedCash;
+    await save('shifts'); closeModal(); updateShiftBadge(); printShift(shift, sales); toast('تم إغلاق الوردية وحفظ ملخصها');
+  });
+}
+function printShift(shift, sales){
+  const popup = window.open('', '_blank', 'width=420,height=720');
+  if(!popup){ toast('اسمح بالنوافذ المنبثقة لطباعة ملخص الوردية'); return; }
+  const total = sales.reduce((n,s)=>n+Number(s.total||0),0), cash = sales.filter(s=>s.paymentMethod==='نقدي').reduce((n,s)=>n+Number(s.total||0),0);
+  popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>ملخص الوردية #${shift.shiftNo}</title><style>body{font-family:Arial;margin:18px;color:#111}.line{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:8px 0}h2{text-align:center}</style><h2>${esc(state.settings.storeName||'متجري')}</h2><h3>ملخص الوردية #${shift.shiftNo}</h3><div class="line"><span>الكاشير</span><b>${esc(shift.openedByName)}</b></div><div class="line"><span>عدد الفواتير</span><b>${sales.length}</b></div><div class="line"><span>إجمالي المبيعات</span><b>${money(total)}</b></div><div class="line"><span>النقد المتوقع</span><b>${money(Number(shift.openingCash||0)+cash)}</b></div><div class="line"><span>النقد الفعلي</span><b>${money(shift.closingCash)}</b></div><div class="line"><span>الفارق</span><b>${money(shift.cashDifference)}</b></div><script>onload=()=>{print();onafterprint=()=>close()}<\/script>`); popup.document.close();
+}
+document.getElementById('shiftBadge').addEventListener('click', openShiftManager);
 
 /* ================= SETTINGS ================= */
 function storageModeLabel(){
@@ -3595,7 +3669,7 @@ function exportBackup(){
     exportedAt: Date.now(),
     products: state.products, sales: state.sales, moves: state.moves,
     categories: state.categories, settings: state.settings, users: state.users,
-    suppliers: state.suppliers, parked: state.parked, expenses: state.expenses
+    suppliers: state.suppliers, parked: state.parked, expenses: state.expenses, shifts: state.shifts
   };
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
@@ -3623,9 +3697,10 @@ function importBackup(e){
       state.suppliers = data.suppliers || [];
       state.parked = data.parked || [];
       state.expenses = data.expenses || [];
+      state.shifts = data.shifts || [];
       // keep current logged-in users as-is unless the backup has its own
       if(data.users && data.users.length) state.users = data.users;
-      await Promise.all(['products','sales','moves','categories','settings','suppliers','parked','expenses','users'].map(save));
+      await Promise.all(['products','sales','moves','categories','settings','suppliers','parked','expenses','shifts','users'].map(save));
       closeModal();
       document.querySelector('#storeNameBtn').textContent = '🏪 ' + state.settings.storeName;
       renderAll();

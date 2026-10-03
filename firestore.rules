@@ -24,13 +24,13 @@ service cloud.firestore {
       allow read: if signedIn()
         && docId in [
           'products', 'sales', 'moves', 'categories', 'suppliers',
-          'parked', 'invoiceCounter'
+          'parked', 'invoiceCounter', 'shifts'
         ];
 
       allow create, update: if signedIn()
         && docId in [
           'products', 'sales', 'moves', 'categories', 'suppliers',
-          'parked', 'invoiceCounter'
+          'parked', 'invoiceCounter', 'shifts'
         ];
 
       allow delete: if false;
