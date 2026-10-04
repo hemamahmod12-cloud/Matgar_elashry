@@ -2135,9 +2135,12 @@ async function confirmSale(options = {}){
         const salesRef = db.collection('storeData').doc('sales');
         const movesRef = db.collection('storeData').doc('moves');
         const counterRef = db.collection('storeData').doc('invoiceCounter');
-        const [prodSnap, salesSnap, movesSnap, counterSnap] = await Promise.all([
-          tx.get(prodRef), tx.get(salesRef), tx.get(movesRef), tx.get(counterRef)
-        ]);
+        // Firestore على بعض إصدارات WebView لا يتعامل بثبات مع tx.get المتوازي؛
+        // كل القراءات تظل قبل أي كتابة، لكن بشكل متسلسل وآمن.
+        const prodSnap = await tx.get(prodRef);
+        const salesSnap = await tx.get(salesRef);
+        const movesSnap = await tx.get(movesRef);
+        const counterSnap = await tx.get(counterRef);
         const liveProducts = prodSnap.exists ? JSON.parse(prodSnap.data().value) : [];
         const liveSales   = salesSnap.exists ? JSON.parse(salesSnap.data().value) : [];
         const liveMoves   = movesSnap.exists ? JSON.parse(movesSnap.data().value) : [];
@@ -2249,7 +2252,13 @@ async function confirmSale(options = {}){
         <button class="btn btn-primary btn-block" data-close>تمام، هعدّل السلة</button>
       `);
     } else {
-      toast('تعذر إتمام عملية البيع، تأكد من الاتصال وحاول تاني');
+      const code = String(e?.code || e?.message || '').toLowerCase();
+      const reason = code.includes('permission-denied') ? 'لا توجد صلاحية لحفظ الفاتورة' :
+        code.includes('failed-precondition') ? 'قاعدة البيانات غير جاهزة للمزامنة' :
+        code.includes('unavailable') || code.includes('network') ? 'الاتصال بالسحابة غير متاح' :
+        'تعذر حفظ الفاتورة';
+      console.error('confirmSale failed', e);
+      toast(`${reason}. حاول مرة أخرى`);
     }
   }finally{
     saleInProgress = false;
@@ -2259,7 +2268,14 @@ async function confirmSale(options = {}){
 
 async function syncOfflineSales(manual = false){
   if(!window.MatgarOfflineQueue || !navigator.onLine || offlineSyncInProgress || !currentUser) return;
-  const pending = await window.MatgarOfflineQueue.pending().catch(() => []);
+  let pending;
+  try{
+    pending = await window.MatgarOfflineQueue.pending();
+  }catch(error){
+    console.error('offline queue read failed', error);
+    if(manual) toast('تعذر فتح الفواتير المعلقة؛ أعد فتح المنصة وحاول مرة أخرى');
+    return;
+  }
   if(!pending.length){
     if(manual) toast('لا توجد مبيعات معلقة للمزامنة');
     dispatchOfflineQueueChanged();
@@ -2323,7 +2339,9 @@ async function syncOfflineSales(manual = false){
 async function retryOfflineQueue(){
   if(!window.MatgarOfflineQueue){ toast('طابور المزامنة غير متاح في هذا المتصفح'); return; }
   if(!navigator.onLine){ toast('لا يوجد اتصال بالإنترنت حاليًا'); return; }
-  const failed = (await window.MatgarOfflineQueue.list()).filter(item => item.status === 'failed');
+  let failed;
+  try{ failed = (await window.MatgarOfflineQueue.list()).filter(item => item.status === 'failed'); }
+  catch(error){ console.error('offline queue list failed', error); toast('تعذر قراءة الفواتير المعلقة'); return; }
   await Promise.all(failed.map(item => window.MatgarOfflineQueue.update(item.clientOperationId, { status:'pending', lastError:null })));
   await syncOfflineSales(true);
 }
