@@ -6,9 +6,11 @@
   const DB_VERSION = 2;
   const OUTBOX = 'outbox';
   const MAX_ATTEMPTS = 5;
+  let dbPromise = null;
 
   function openDb() {
-    return new Promise((resolve, reject) => {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
       if (!global.indexedDB) return reject(new Error('indexeddb-unavailable'));
       const request = global.indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
@@ -21,8 +23,9 @@
         }
       };
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('indexeddb-open-failed'));
+      request.onerror = () => { dbPromise = null; reject(request.error || new Error('indexeddb-open-failed')); };
     });
+    return dbPromise;
   }
 
   function allRecords() {

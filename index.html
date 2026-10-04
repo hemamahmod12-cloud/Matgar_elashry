@@ -786,6 +786,7 @@
 </div>
 
 <script src="src/shared-utils.js"></script>
+<script src="src/performance-metrics.js"></script>
 <script src="src/sale-calculator.js"></script>
 <script src="src/store-repository.js"></script>
 <script src="src/collections-repository.js"></script>
@@ -815,6 +816,43 @@ let offlineSyncInProgress = false;
 const OFFLINE_SESSION_KEY = 'matgar-offline-session-v2';
 const OFFLINE_DIRTY_KEY = 'matgar-offline-dirty-v1';
 let authAliases = {};
+const storageReadCache = new Map();
+const pendingSaves = new Map();
+let renderFrame = null;
+let productIndex = { source: null, all: [], active: [], byId: new Map(), names: [] };
+function perfStart(name){ window.MatgarPerf?.start(name); }
+function perfEnd(name){ window.MatgarPerf?.end(name); }
+function rebuildProductIndex(){
+  const products = Array.isArray(state.products) ? state.products : [];
+  if(productIndex.source === products) return;
+  const active = [], byId = new Map();
+  products.forEach(product => {
+    if(!product || !product.id) return;
+    byId.set(String(product.id), product);
+    if(!product.deleted) active.push(product);
+  });
+  productIndex = { source: products, all: products, active, byId,
+    names: products.map(product => ({ product, name: String(product.name || '').toLowerCase(), barcode: String(product.barcode || '') })) };
+}
+function invalidateProductIndex(){ productIndex.source = null; rebuildProductIndex(); }
+function searchProducts(term, limit, includeDeleted = false){
+  rebuildProductIndex();
+  const normalized = String(term || '').trim().toLowerCase();
+  if(!normalized) return limit ? productIndex.active.slice(0, limit) : productIndex.active.slice();
+  const result = [];
+  for(const entry of productIndex.names){
+    if((includeDeleted || !entry.product.deleted) && (entry.name.includes(normalized) || entry.barcode.includes(normalized))){
+      result.push(entry.product);
+      if(limit && result.length >= limit) break;
+    }
+  }
+  return result;
+}
+function scheduleRender(){
+  if(renderFrame !== null) return;
+  const run = () => { renderFrame = null; if(currentUser) { applyRolePermissions(); renderAll(); } };
+  renderFrame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(run) : setTimeout(run, 16);
+}
 
 /* ---------------- قفل تلقائي بعد عدم نشاط ----------------
    لو حد سايب الشاشة مفتوحة (كاشير نسي يقفل مثلًا)، النظام بيسجّل خروج
@@ -1019,10 +1057,16 @@ async function loadLocalUsersForLogin(){
   }catch(_e){ /* لا نمنع شاشة الدخول إذا لم توجد نسخة محلية */ }
 }
 async function storageGet(key){
+  const cached = storageReadCache.get(key);
+  if(cached && Date.now() - cached.at < 30000){
+    window.MatgarPerf?.increment('storage.cacheHit');
+    return cached.value;
+  }
+  window.MatgarPerf?.increment('storage.cacheMiss');
   if(db){
     try{
       const value = await fsGet(key);
-      if(value != null) idbSet(key, value).catch(() => {});
+      if(value != null){ storageReadCache.set(key, { value, at: Date.now() }); idbSet(key, value).catch(() => {}); }
       return value;
     }
     catch(e){
@@ -1037,9 +1081,13 @@ async function storageGet(key){
   }
   if(hasClaudeStorage){
     const r = await window.storage.get(key).catch(() => null);
-    return r ? r.value : null;
+    const value = r ? r.value : null;
+    if(value != null) storageReadCache.set(key, { value, at: Date.now() });
+    return value;
   }
-  return idbGet(key);
+  const value = await idbGet(key);
+  if(value != null) storageReadCache.set(key, { value, at: Date.now() });
+  return value;
 }
 async function storageSet(key, value){
   // أثناء انقطاع الإنترنت نكتب فورًا إلى IndexedDB بدل تعطيل العمل؛
@@ -1047,10 +1095,16 @@ async function storageSet(key, value){
   if(!navigator.onLine){
     storageMode = 'browser-offline';
     markOfflineDirty(key);
-    return idbSet(key, value);
+    const result = await idbSet(key, value);
+    storageReadCache.set(key, { value, at: Date.now() });
+    return result;
   }
   if(db){
-    try{ return await fsSet(key, value); }
+    try{
+      const result = await fsSet(key, value);
+      storageReadCache.set(key, { value, at: Date.now() });
+      return result;
+    }
     catch(e){
       firebaseReadFailed = true;
       storageMode = 'firebase-fallback';
@@ -1058,8 +1112,14 @@ async function storageSet(key, value){
       if(currentUser) return false;
     }
   }
-  if(hasClaudeStorage) return window.storage.set(key, value).then(() => true);
-  return idbSet(key, value);
+  if(hasClaudeStorage){
+    const result = await window.storage.set(key, value).then(() => true);
+    storageReadCache.set(key, { value, at: Date.now() });
+    return result;
+  }
+  const result = await idbSet(key, value);
+  storageReadCache.set(key, { value, at: Date.now() });
+  return result;
 }
 
 async function syncDirtyLocalData(){
@@ -1101,6 +1161,7 @@ function dispatchOfflineQueueChanged(){
 }
 
 async function loadAll(){
+  perfStart('loadAll');
   try{
     // المسار الجديد يقرأ كل كيان من مستند مستقل؛ لا نخلط بينه وبين
     // مستندات storeData القديمة إلا إذا بقي العلم مغلقًا.
@@ -1117,6 +1178,7 @@ async function loadAll(){
       state.expenses = next.expenses || [];
       storageOK = true;
       storageMode = 'firebase';
+      invalidateProductIndex();
       return;
     }
     // كل استدعاء يبدأ بفحص جديد؛ لا نُبقي تحذيرًا قديمًا إذا عادت القراءة
@@ -1137,6 +1199,7 @@ async function loadAll(){
     storageOK = true;
     // القراءة السحابية الأساسية تعمل حتى لو تعذر مستند اختياري.
     storageMode = !navigator.onLine ? 'browser-offline' : (firebaseReadFailed ? 'firebase-fallback' : (db ? 'firebase' : (hasClaudeStorage ? 'claude' : 'browser')));
+    invalidateProductIndex();
     if(!p) await save('products');
     if(!c) await save('categories');
     // لا نحاول إنشاء مستند إعدادات محمي بقواعد قديمة؛ الإعداد الافتراضي
@@ -1146,6 +1209,9 @@ async function loadAll(){
     storageMode = 'none';
     state.products = seedProducts();
     state.categories = ['عام'];
+    invalidateProductIndex();
+  } finally {
+    perfEnd('loadAll');
   }
 }
 
@@ -1155,19 +1221,29 @@ function simpleHash(str){
   return h.toString(36);
 }
 
-async function save(which){
-  if(!storageOK) return false;
-  try{
-    if(COLLECTIONS_BACKEND_ENABLED){
-      await MatgarCollections.writeState(which, state[which]);
-      return true;
-    }
-    const result = await storageSet(KEYS[which], JSON.stringify(state[which]));
-    return result !== false;
-  }catch(e){
-    console.error('تعذر حفظ البيانات:', which, e);
-    return false;
-  }
+function save(which){
+  if(!storageOK) return Promise.resolve(false);
+  if(which === 'products') invalidateProductIndex();
+  const existing = pendingSaves.get(which);
+  if(existing) return existing.promise;
+  let resolvePromise;
+  const promise = new Promise(resolve => { resolvePromise = resolve; });
+  const timer = setTimeout(async () => {
+    pendingSaves.delete(which);
+    perfStart(`save.${which}`);
+    try{
+      const value = JSON.stringify(state[which]);
+      const result = COLLECTIONS_BACKEND_ENABLED
+        ? await MatgarCollections.writeState(which, state[which])
+        : await storageSet(KEYS[which], value);
+      resolvePromise(result !== false);
+    }catch(e){
+      console.error('تعذر حفظ البيانات:', which, e);
+      resolvePromise(false);
+    }finally{ perfEnd(`save.${which}`); }
+  }, 40);
+  pendingSaves.set(which, { timer, promise });
+  return promise;
 }
 
 /* ---------------- مزامنة لحظية (real-time sync) ----------------
@@ -1187,9 +1263,9 @@ function startRealtimeSync(){
     const rerender = () => {
       if(!currentUser) return;
       const modalOpen = document.getElementById('modalBack').classList.contains('open');
-      if(!modalOpen){ applyRolePermissions(); renderAll(); }
+      if(!modalOpen) scheduleRender();
     };
-    realtimeUnsubs.push(MatgarCollections.subscribeProducts(items => { state.products = items; rerender(); }, () => {}));
+    realtimeUnsubs.push(MatgarCollections.subscribeProducts(items => { state.products = items; invalidateProductIndex(); rerender(); }, () => {}));
     realtimeUnsubs.push(MatgarCollections.subscribeCollection('sales', items => {
       state.sales = items.sort((a,b) => Number(b.date || 0) - Number(a.date || 0)); rerender();
     }, () => {}));
@@ -1209,8 +1285,7 @@ function startRealtimeSync(){
         : parsed;
       const modalOpen = document.getElementById('modalBack').classList.contains('open');
       if(!modalOpen){
-        applyRolePermissions();
-        renderAll();
+        scheduleRender();
       }
     }, () => { /* تجاهل أخطاء الصلاحيات قبل تسجيل الدخول */ });
     realtimeUnsubs.push(unsub);
@@ -1289,9 +1364,9 @@ function uid(){ return Date.now().toString(36) + Math.random().toString(36).slic
     function fmtDateShort(ts){ return MatgarUtils.formatDateShort(ts); }
     function esc(str){ return MatgarUtils.escapeHtml(str); }
     function safeLogoSrc(){ return MatgarUtils.safeImageDataUrl(state.settings.logoDataUrl); }
-function findProduct(id){ return state.products.find(p => p.id === id); }
+function findProduct(id){ rebuildProductIndex(); return productIndex.byId.get(String(id)); }
 // المنتجات الفعّالة فقط (مش المحذوفة) — دي اللي المفروض تظهر في البيع والتقارير والبحث اليومي
-function activeProducts(){ return state.products.filter(p => !p.deleted); }
+function activeProducts(){ rebuildProductIndex(); return productIndex.active; }
 function stockPill(p){
   if(p.qty <= 0) return '<span class="pill pill-bad">نفذ من المخزون</span>';
   if(p.qty <= p.minQty) return '<span class="pill pill-warn">كمية منخفضة</span>';
@@ -1565,11 +1640,7 @@ function renderPosChips(){
 
 function renderPosList(){
   const term = posSearchTerm.trim().toLowerCase();
-  let list = activeProducts().filter(p => {
-    const matchCat = posFilterCat === 'الكل' || p.category === posFilterCat;
-    const matchTerm = !term || p.name.toLowerCase().includes(term) || (p.barcode||'').includes(term);
-    return matchCat && matchTerm;
-  });
+  let list = (term ? searchProducts(term) : activeProducts()).filter(p => posFilterCat === 'الكل' || p.category === posFilterCat);
   const wrap = document.getElementById('posList');
   const moreWrap = document.getElementById('posLoadMoreWrap');
   if(list.length === 0){
@@ -2303,7 +2374,7 @@ let showingTrash = false;
 function renderProdMgmt(){
   const term = prodSearchTerm.trim().toLowerCase();
   const pool = showingTrash ? state.products.filter(p => p.deleted) : activeProducts();
-  const list = pool.filter(p => !term || p.name.toLowerCase().includes(term) || (p.barcode||'').includes(term));
+  const list = term ? searchProducts(term, undefined, showingTrash).filter(p => showingTrash ? p.deleted : !p.deleted) : pool;
   const wrap = document.getElementById('prodMgmtList');
   const moreWrap = document.getElementById('prodLoadMoreWrap');
   document.getElementById('prodMgmtTitle').textContent = showingTrash ? 'المحذوفات' : 'المنتجات';
@@ -2617,7 +2688,7 @@ document.getElementById('openMoveBtn').addEventListener('click', () => {
   function renderMoveResults(term){
     const t = term.trim().toLowerCase();
     if(!t){ resultsWrap.innerHTML = ''; return; }
-    const matches = activeProducts().filter(p => p.name.toLowerCase().includes(t) || (p.barcode||'').includes(t)).slice(0, 20);
+    const matches = searchProducts(t, 20);
     resultsWrap.innerHTML = matches.map(p => `
       <div class="prod-item" data-pick="${p.id}" style="padding:8px 10px;">
         <div><div class="name" style="font-size:13px;">${esc(p.name)}</div><div class="sub">متاح: ${p.qty} ${esc(p.unit||'')}</div></div>
@@ -3799,9 +3870,11 @@ function updateBranding(){
   document.title = name;
 }
 function renderAll(){
+  perfStart('renderAll');
   updateBranding();
   renderPosChips(); renderPosList(); renderCart(); renderParkedSection();
   renderProdMgmt(); renderStockView(); renderReports();
+  perfEnd('renderAll');
 }
 (async function init(){
   document.getElementById('todayDate').textContent = todayStr();

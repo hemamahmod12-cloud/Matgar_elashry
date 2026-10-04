@@ -1,0 +1,31 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+const html = fs.readFileSync('index.html', 'utf8');
+const queue = fs.readFileSync('src/offline-queue.js', 'utf8');
+const sw = fs.readFileSync('sw.js', 'utf8');
+
+assert.match(html, /src\/performance-metrics\.js/);
+assert.match(html, /const COLLECTIONS_BACKEND_ENABLED = false;/);
+assert.match(html, /const pendingSaves = new Map\(\)/);
+assert.match(html, /setTimeout\(async \(\) => \{/);
+assert.match(html, /function rebuildProductIndex\(\)/);
+assert.match(html, /function scheduleRender\(\)/);
+assert.match(html, /storage\.cacheHit/);
+assert.match(queue, /let dbPromise = null;/);
+assert.match(queue, /if \(dbPromise\) return dbPromise;/);
+assert.match(sw, /matgar-elashry-shell-v13/);
+assert.match(sw, /\.\/src\/performance-metrics\.js/);
+
+const context = { window: {}, performance: { now: () => 100 } };
+context.window.performance = context.performance;
+vm.createContext(context);
+vm.runInContext(fs.readFileSync('src/performance-metrics.js', 'utf8'), context);
+context.window.MatgarPerf.start('render');
+context.window.MatgarPerf.increment('render.requested', 2);
+assert.equal(context.window.MatgarPerf.snapshot().counts['render.requested'], 2);
+assert.equal(Object.keys(context.window.MatgarPerf.snapshot().durations).length, 0);
+context.window.MatgarPerf.end('render');
+assert.equal(context.window.MatgarPerf.snapshot().durations.render.samples, 1);
+console.log('performance optimization tests: OK');
