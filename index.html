@@ -2258,7 +2258,9 @@ async function confirmSale(options = {}){
         code.includes('unavailable') || code.includes('network') ? 'الاتصال بالسحابة غير متاح' :
         'تعذر حفظ الفاتورة';
       console.error('confirmSale failed', e);
-      toast(`${reason}. حاول مرة أخرى`);
+      try{ localStorage.setItem('matgar-last-sale-error', JSON.stringify({ code: e?.code || '', message: e?.message || '', at: Date.now() })); }catch(_e){}
+      const detail = e?.code || e?.message;
+      toast(`${reason}${detail ? ` (${detail})` : ''}. حاول مرة أخرى`);
     }
   }finally{
     saleInProgress = false;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v14';
+const CACHE_NAME = 'matgar-elashry-shell-v15';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
