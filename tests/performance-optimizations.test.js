@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync('index.html', 'utf8');
 const queue = fs.readFileSync('src/offline-queue.js', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
+const categoryPatch = fs.readFileSync('category-filter-patch.js', 'utf8');
 
 assert.match(html, /src\/performance-metrics\.js/);
 assert.match(html, /const COLLECTIONS_BACKEND_ENABLED = false;/);
@@ -13,6 +14,9 @@ assert.match(html, /setTimeout\(async \(\) => \{/);
 assert.match(html, /function rebuildProductIndex\(\)/);
 assert.match(html, /function scheduleRender\(\)/);
 assert.match(html, /storage\.cacheHit/);
+assert.match(html, /window\.MatgarUI = \{/);
+assert.doesNotMatch(categoryPatch, /(?<![.\w])activeProducts\(\)/);
+assert.match(categoryPatch, /app\.activeProducts\(\)/);
 assert.match(queue, /let dbPromise = null;/);
 assert.match(queue, /if \(dbPromise\) return dbPromise;/);
 assert.match(sw, /matgar-elashry-shell-v13/);

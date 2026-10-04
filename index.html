@@ -1783,7 +1783,7 @@ document.getElementById('holdBtn').addEventListener('click', async () => {
   toast('تم تعليق الفاتورة');
 });
 
-document.getElementById('posSearch').addEventListener('input', debounce(e => { posSearchTerm = e.target.value; posRenderLimit = 60; renderPosList(); }, 150));
+document.getElementById('posSearch').addEventListener('input', debounce(e => { posSearchTerm = e.target.value; posRenderLimit = 60; (window.renderPosList || renderPosList)(); }, 150));
 
 /* ---------------- مسح باركود بالكاميرا ----------------
    نستخدم الصيغ التي يدعمها الهاتف فعليًا فقط؛ بعض إصدارات Chrome تدعم
@@ -1883,7 +1883,7 @@ document.getElementById('posSearch').addEventListener('keydown', e => {
     e.target.value = '';
     posSearchTerm = '';
     posRenderLimit = 60;
-    renderPosList();
+    (window.renderPosList || renderPosList)();
   }
 });
 document.getElementById('posChips').addEventListener('click', e => {
@@ -1891,7 +1891,8 @@ document.getElementById('posChips').addEventListener('click', e => {
   if(!chip) return;
   posFilterCat = chip.getAttribute('data-cat');
   posRenderLimit = 60;
-  renderPosChips(); renderPosList();
+  (window.renderPosChips || renderPosChips)();
+  (window.renderPosList || renderPosList)();
 });
 document.getElementById('posList').addEventListener('click', e => {
   const item = e.target.closest('[data-add]');
@@ -3872,10 +3873,22 @@ function updateBranding(){
 function renderAll(){
   perfStart('renderAll');
   updateBranding();
-  renderPosChips(); renderPosList(); renderCart(); renderParkedSection();
+  (window.renderPosChips || renderPosChips)();
+  (window.renderPosList || renderPosList)();
+  renderCart(); renderParkedSection();
   renderProdMgmt(); renderStockView(); renderReports();
   perfEnd('renderAll');
 }
+window.MatgarUI = {
+  activeProducts,
+  getCategory: () => posFilterCat,
+  setCategory: value => { posFilterCat = value; },
+  getSearch: () => posSearchTerm,
+  getLimit: () => posRenderLimit,
+  setLimit: value => { posRenderLimit = value; },
+  esc,
+  money
+};
 (async function init(){
   document.getElementById('todayDate').textContent = todayStr();
   // لا نقرأ مستندات Firestore المحمية قبل تسجيل الدخول.
