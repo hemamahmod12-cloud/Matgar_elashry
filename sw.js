@@ -95,9 +95,16 @@ self.addEventListener('fetch', (event) => {
   }
 
   // لا نحتجز طلبات Firebase/Firestore أو أي كتابة سحابية داخل Service Worker.
+  const firebaseHosts = new Set([
+    'www.googleapis.com',
+    'firestore.googleapis.com',
+    'identitytoolkit.googleapis.com',
+    'securetoken.googleapis.com',
+    'www.gstatic.com',
+    'gstatic.com',
+  ]);
   if (
-    url.hostname.includes('googleapis.com') ||
-    url.hostname.includes('gstatic.com') ||
+    firebaseHosts.has(url.hostname) ||
     url.pathname.includes('/firestore') ||
     url.pathname.includes('/identitytoolkit')
   ) {

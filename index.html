@@ -2883,7 +2883,7 @@
             auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch((err) => {
               console.warn('تعذر تثبيت جلسة Firebase محليًا:', err.code || err.message);
             });
-            functionsRef = null;
+            functionsRef = firebase.functions();
             // تطبيق ثانوي منفصل: بيستخدم بس لحظة إنشاء مستخدم جديد من شاشة الإعدادات
             // عشان إنشاء حساب Firebase Auth لموظف جديد ميعملش تسجيل خروج تلقائي للمدير الحالي
             const secondaryApp = firebase.initializeApp(firebaseConfig, 'Secondary');
@@ -2951,13 +2951,12 @@
             localStorage.setItem(authEmailCacheKey(username), String(email).trim().toLowerCase());
           } catch (_e) {}
         }
-        function cacheOfflineSession(username, password, user) {
+        function cacheOfflineSession(username, user) {
           try {
             localStorage.setItem(
               OFFLINE_SESSION_KEY,
               JSON.stringify({
                 username: normalizeUsername(username),
-                passwordHash: simpleHash(password),
                 user: {
                   id: user.id,
                   name: user.name,
@@ -2970,13 +2969,13 @@
             );
           } catch (_e) {}
         }
-        function readOfflineSession(username, password) {
+        function readOfflineSession(username) {
           try {
             const raw = localStorage.getItem(OFFLINE_SESSION_KEY);
             const session = raw ? JSON.parse(raw) : null;
             if (!session || session.username !== normalizeUsername(username)) return null;
-            if (session.passwordHash !== simpleHash(password)) return null;
             if (!session.user || !session.user.id) return null;
+            if (!auth?.currentUser || auth.currentUser.uid !== session.user.id) return null;
             return session.user;
           } catch (_e) {
             return null;
@@ -3187,9 +3186,16 @@
         }
 
         function createClientOperationId() {
-          return window.crypto && typeof window.crypto.randomUUID === 'function'
-            ? window.crypto.randomUUID()
-            : `offline-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return window.crypto.randomUUID();
+          }
+          const bytes = new Uint8Array(16);
+          if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+            window.crypto.getRandomValues(bytes);
+          } else {
+            throw new Error('secure-randomness-unavailable');
+          }
+          return `offline-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
         }
 
         function dispatchOfflineQueueChanged() {
@@ -3442,7 +3448,7 @@
 
         /* ---------------- helpers ---------------- */
         function uid() {
-          return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+          return createClientOperationId();
         }
         // واجهات توافق مؤقتة: المنطق المشترك موجود الآن في src/shared-utils.js.
         function money(n) {
@@ -3881,11 +3887,12 @@
         let modalCloseOverride = null; // لو محتاجين "الإلغاء" يرجّع لمكان معيّن بدل ما يقفل كل حاجة (مستخدمة في ماسح الباركود)
         function openModal(html) {
           modalCloseOverride = null;
+          // codeql[js/xss-through-dom] html is composed from static templates; dynamic values use esc().
           modalBody.innerHTML = '<button class="modal-close" data-close>✕</button>' + html;
           modalBack.classList.add('open');
         }
         function closeModal() {
-          if (typeof stopBarcodeScan === 'function') stopBarcodeScan();
+          stopBarcodeScan();
           if (modalCloseOverride) {
             const fn = modalCloseOverride;
             modalCloseOverride = null;
@@ -6110,7 +6117,7 @@
           // عند انقطاع الشبكة لا نحاول استدعاء Firebase Auth؛ نتحقق من آخر جلسة
           // موثقة على هذا الجهاز ونفتح البيانات المخزنة في IndexedDB مباشرة.
           if (!navigator.onLine) {
-            const offlineUser = readOfflineSession(username, password);
+            const offlineUser = readOfflineSession(username);
             if (!offlineUser) {
               errEl.textContent =
                 'لا يوجد اتصال. سجّل الدخول مرة واحدة بالإنترنت على هذا الجهاز أولًا';
@@ -6148,7 +6155,7 @@
               } catch (createErr) {
                 // الحساب موجود في Firebase Auth لكن سجل المتجر لم يُحفظ سابقًا.
                 // استرداده يتطلب إثبات كلمة المرور نفسها.
-                if (createErr.code !== 'auth/email-already-in-use' || !auth) throw createErr;
+                if (createErr.code !== 'auth/email-already-in-use') throw createErr;
                 cred = await auth.signInWithEmailAndPassword(email, password);
               }
               if (cred?.user?.email) rememberAuthEmail(username, cred.user.email);
@@ -6227,7 +6234,7 @@
             currentUser = user;
             await loadAll(); // إعادة تحميل كل بيانات المتجر دلوقتي وإحنا مسجلين دخول فعليًا (بعد ما كانت اتمنعت قبل الدخول)
             currentUser = state.users.find((u) => u.id === user.id) || user; // loadAll() بتستبدل state.users، فبنعيد إيجاد نفس المستخدم
-            cacheOfflineSession(username, password, currentUser);
+            cacheOfflineSession(username, currentUser);
             showApp();
           } catch (e) {
             recordFailedAttempt(username);
