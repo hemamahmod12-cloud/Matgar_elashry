@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v11';
+const CACHE_NAME = 'matgar-elashry-shell-v12';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const SAME_ORIGIN_SHELL = [
   './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png',
+  './desktop-layout-fix.css',
   './src/shared-utils.js',
   './src/sale-calculator.js',
   './src/store-repository.js',

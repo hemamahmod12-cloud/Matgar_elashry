@@ -56,7 +56,7 @@ nav.tabbar button.active{background:linear-gradient(90deg,rgba(235,202,145,.28),
 nav.tabbar button.active::before{background:#e7c078!important}
 
 /* الكاشير: تخطيط عملي ومربعات منتظمة */
-#view-cashier{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,370px);grid-template-areas:"search cart" "categories cart" "parked cart" "products cart" "more cart";gap:14px 22px;align-items:start}
+#view-cashier.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,370px);grid-template-areas:"search cart" "categories cart" "parked cart" "products cart" "more cart";gap:14px 22px;align-items:start}
 #view-cashier>.search-wrap{grid-area:search;width:100%;margin:0;padding:10px;background:rgba(255,250,242,.76);border:1px solid var(--velvet-line);border-radius:18px;box-shadow:var(--velvet-shadow)}
 #view-cashier>.chips{grid-area:categories}
 #view-cashier>#parkedSection{grid-area:parked}
@@ -104,12 +104,12 @@ nav.tabbar button.active::before{background:#e7c078!important}
 /* الكمبيوتر */
 @media(min-width:1200px){#posList.pos-product-grid,#view-cashier>#posList{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(min-width:1560px){#posList.pos-product-grid,#view-cashier>#posList{grid-template-columns:repeat(5,minmax(0,1fr))}}
-@media(min-width:760px) and (max-width:1199px){main{width:min(100% - 34px,1050px)}#view-cashier{grid-template-columns:minmax(0,1fr) 310px;gap:14px}}
+@media(min-width:760px) and (max-width:1199px){main{width:min(100% - 34px,1050px)}#view-cashier.active{grid-template-columns:minmax(0,1fr) 310px;gap:14px}}
 
 /* الهاتف: مربعات حقيقية ومساحات مشدودة */
 @media(max-width:759px){
   main{width:100%;padding:13px 10px 104px}
-  #view-cashier{display:block}
+  #view-cashier.active{display:block}
   #view-cashier>.search-wrap,#view-cashier>.chips,#view-cashier>#parkedSection,#view-cashier>#posList,#view-cashier>#posLoadMoreWrap,#view-cashier>#cartSection{width:100%;margin-bottom:11px}
   #view-cashier>#cartSection{position:static}
   #posList.pos-product-grid,#view-cashier>#posList{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:auto;gap:9px}
