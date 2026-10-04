@@ -59,7 +59,7 @@
       categories: categories.filter(item => item.deleted !== true).map(item => String(item.name || '')).filter(Boolean),
       settings: settings.exists ? settings.data() : {},
       users: users.filter(item => item.deleted !== true),
-      suppliers: suppliers.filter(item => item.deleted !== true),
+      suppliers: suppliers.filter(item => item.deleted !== true).map(item => typeof item === 'string' ? { name: item } : item),
       parked: parkedOrders.filter(item => item.deleted !== true),
       expenses: expenses.filter(item => item.deleted !== true)
     };
@@ -84,7 +84,9 @@
       const id = name === 'categories'
         ? normalizeCategoryId(item, index)
         : documentId(item && item.id, `${name}-${index + 1}`);
-      const data = name === 'categories' ? { name: String(item || ''), deleted: false } : { ...item };
+      const data = name === 'categories'
+        ? { name: String(item || ''), deleted: false }
+        : (name === 'suppliers' && typeof item === 'string' ? { name: item, deleted: false } : { ...item });
       writer.set(collection(name === 'moves' ? 'stockMoves' : name === 'parked' ? 'parkedOrders' : name).doc(id), data, { merge: true });
     });
     await writer.close();
