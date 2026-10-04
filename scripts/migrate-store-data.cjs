@@ -74,7 +74,10 @@ function validate(data) {
     if (!item || !Array.isArray(item.items) || item.items.length === 0) errors.push(`sales[${index}] بلا items`);
     if (Number(item.total) < 0) errors.push(`sales[${index}] إجمالي سالب`);
   });
-  for (const key of ['moves', 'users', 'suppliers', 'parked', 'expenses']) {
+  // الموردون في النسخة القديمة قد لا يحملون id لأن التطبيق كان يخزنهم
+  // داخل مصفوفة واحدة. makePlan يولد لهم supplier-{index} ثابتًا.
+  // نُبقي التحقق الصارم للكيانات المرتبطة بالفواتير والمخزون.
+  for (const key of ['moves', 'users', 'parked', 'expenses']) {
     data[key].forEach((item, index) => {
       if (!item || !String(item.id || '').trim()) errors.push(`${key}[${index}] بلا id`);
     });
@@ -112,7 +115,10 @@ function makePlan(data) {
     sales: data.sales.map((item, index) => ({ id: stableId(item.id, `sale-${index + 1}`), data: toTargetData(item, `storeData/sales/${item.id}`) })),
     stockMoves: data.moves.map((item, index) => ({ id: stableId(item.id, `move-${index + 1}`), data: toTargetData(item, `storeData/moves/${item.id}`) })),
     users: data.users.map((item, index) => ({ id: stableId(item.id, `user-${index + 1}`), data: toTargetData(item, `storeData/users/${item.id}`) })),
-    suppliers: data.suppliers.map((item, index) => ({ id: stableId(item.id, `supplier-${index + 1}`), data: toTargetData(item, `storeData/suppliers/${item.id}`) })),
+    suppliers: data.suppliers.map((item, index) => {
+      const id = stableId(item.id, `supplier-${index + 1}`);
+      return { id, data: toTargetData(item, `storeData/suppliers/${id}`) };
+    }),
     parkedOrders: data.parked.map((item, index) => ({ id: stableId(item.id, `parked-${index + 1}`), data: toTargetData(item, `storeData/parked/${item.id}`) })),
     expenses: data.expenses.map((item, index) => ({ id: stableId(item.id, `expense-${index + 1}`), data: toTargetData(item, `storeData/expenses/${item.id}`) })),
     categories: data.categories.map((name, index) => ({ id: categoryId(name, index), data: toTargetData({ name: String(name) }, `storeData/categories[${index}]`) }))
