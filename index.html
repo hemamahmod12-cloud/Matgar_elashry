@@ -1190,14 +1190,15 @@ async function logAudit(action, targetType, details){
       details: details || {},
       byUserId: currentUser ? currentUser.id : null,
       byUserName: currentUser ? currentUser.name : 'غير معروف',
-      at: Date.now()
+      // القواعد تشترط وقت الخادم، وليس وقت الجهاز المحلي.
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   }catch(e){ /* فشل تسجيل المراجعة ما يوقفش العملية الأساسية */ }
 }
 async function loadAuditLog(limit){
   if(!db) return [];
   try{
-    const snap = await db.collection('auditLog').orderBy('at','desc').limit(limit||50).get();
+    const snap = await db.collection('auditLog').orderBy('createdAt','desc').limit(limit||50).get();
     return snap.docs.map(d => d.data());
   }catch(e){ return []; }
 }
