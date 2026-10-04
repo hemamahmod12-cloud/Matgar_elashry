@@ -8,7 +8,9 @@
 
   function openDb() {
     return new Promise((resolve, reject) => {
-      if (!global.indexedDB) return reject(new Error('indexeddb-unavailable'));
+      if (!global.indexedDB) {
+        return reject(new Error('indexeddb-unavailable'));
+      }
       const request = global.indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
@@ -27,17 +29,24 @@
   }
 
   function readLocal(key) {
-    return openDb().then(db => new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const request = transaction.objectStore(STORE_NAME).get(key);
-      request.onsuccess = () => resolve(request.result == null ? null : request.result);
-      request.onerror = () => reject(request.error || new Error('indexeddb-read-failed'));
-    }));
+    return openDb().then(
+      (db) =>
+        new Promise((resolve, reject) => {
+          const transaction = db.transaction(STORE_NAME, 'readonly');
+          const request = transaction.objectStore(STORE_NAME).get(key);
+          request.onsuccess = () => resolve(request.result === null ? null : request.result);
+          request.onerror = () => reject(request.error || new Error('indexeddb-read-failed'));
+        })
+    );
   }
 
   function parseArray(value) {
-    if (Array.isArray(value)) return value;
-    if (typeof value !== 'string') return [];
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value !== 'string') {
+      return [];
+    }
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [];
@@ -67,7 +76,9 @@
     const count = document.getElementById('pendingInvoicesCount');
     const salesCount = document.getElementById('offlineSalesCount');
     const sync = document.getElementById('lastSyncText');
-    if (!bar || !text || !count) return;
+    if (!bar || !text || !count) {
+      return;
+    }
 
     const online = global.navigator.onLine;
     bar.classList.toggle('is-online', online);
@@ -83,7 +94,8 @@
     }
     if (sync) {
       sync.textContent = `آخر فحص: ${new Date().toLocaleTimeString('ar-EG', {
-        hour: '2-digit', minute: '2-digit'
+        hour: '2-digit',
+        minute: '2-digit',
       })}`;
     }
   }
@@ -96,7 +108,9 @@
     global.addEventListener('offline-queue-changed', refresh);
     const button = document.getElementById('pendingInvoicesButton');
     button?.addEventListener('click', () => {
-      document.getElementById('parkedSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document
+        .getElementById('parkedSection')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     refresh();
   }
@@ -106,13 +120,18 @@
   } else {
     init();
   }
-}(window));
+})(window);
 
 // التسجيل هنا بعد تعريف التطبيق لا يعتمد على Firebase ولا يمنع تحميل الصفحة Offline.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(registration => registration.update().catch(() => {}))
-      .catch(error => console.warn('تعذر تسجيل Service Worker:', error));
-  }, { once: true });
+  window.addEventListener(
+    'load',
+    () => {
+      navigator.serviceWorker
+        .register('./sw.js', { scope: './' })
+        .then((registration) => registration.update().catch(() => {}))
+        .catch((error) => console.warn('تعذر تسجيل Service Worker:', error));
+    },
+    { once: true }
+  );
 }

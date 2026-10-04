@@ -1,0 +1,33 @@
+name: Auto Fix & Format
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  autofix:
+    name: إصلاح تلقائي
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx eslint . --ext .js,.jsx,.ts,.tsx --fix
+        continue-on-error: true
+      - run: npx prettier --write "**/*.{js,jsx,ts,tsx,json,md,yml,yaml,css,html}"
+        continue-on-error: true
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: '🤖 إصلاح تلقائي: تنسيق الكود'
+          commit_user_name: 'AutoFix Bot'
+          commit_user_email: 'autofix@users.noreply.github.com'
+          skip_fetch: true

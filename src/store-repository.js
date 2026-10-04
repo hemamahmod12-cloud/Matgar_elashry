@@ -3,7 +3,9 @@
   'use strict';
 
   function createStoreRepository(db) {
-    if (!db) throw new Error('firestore-unavailable');
+    if (!db) {
+      throw new Error('firestore-unavailable');
+    }
     const collection = db.collection('storeData');
 
     return Object.freeze({
@@ -17,14 +19,19 @@
         return true;
       },
       subscribe(key, onValue, onError) {
-        return collection.doc(key).onSnapshot(snapshot => {
-          if (!snapshot.exists) return onValue(null, snapshot);
+        return collection.doc(key).onSnapshot((snapshot) => {
+          if (!snapshot.exists) {
+            return onValue(null, snapshot);
+          }
           const data = snapshot.data();
-          onValue(data && Object.prototype.hasOwnProperty.call(data, 'value') ? data.value : null, snapshot);
+          onValue(
+            data && Object.prototype.hasOwnProperty.call(data, 'value') ? data.value : null,
+            snapshot
+          );
         }, onError);
-      }
+      },
     });
   }
 
   global.MatgarStore = Object.freeze({ createStoreRepository });
-}(window));
+})(window);

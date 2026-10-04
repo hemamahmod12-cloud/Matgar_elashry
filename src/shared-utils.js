@@ -3,21 +3,48 @@
   'use strict';
 
   const CSV_HEADER_MAP = {
-    name: 'name', 'اسم المنتج': 'name', 'الاسم': 'name',
-    barcode: 'barcode', 'باركود': 'barcode', 'الباركود': 'barcode', 'كود': 'barcode',
-    category: 'category', 'فئة': 'category', 'الفئة': 'category',
-    buyprice: 'buyPrice', 'buy price': 'buyPrice', 'سعر الشراء': 'buyPrice',
-    sellprice: 'sellPrice', 'sell price': 'sellPrice', 'سعر البيع': 'sellPrice',
-    qty: 'qty', quantity: 'qty', 'الكمية': 'qty',
-    minqty: 'minQty', 'min qty': 'minQty', 'الحد الادنى': 'minQty', 'حد التنبيه': 'minQty',
-    unit: 'unit', 'الوحدة': 'unit'
+    name: 'name',
+    'اسم المنتج': 'name',
+    الاسم: 'name',
+    barcode: 'barcode',
+    باركود: 'barcode',
+    الباركود: 'barcode',
+    كود: 'barcode',
+    category: 'category',
+    فئة: 'category',
+    الفئة: 'category',
+    buyprice: 'buyPrice',
+    'buy price': 'buyPrice',
+    'سعر الشراء': 'buyPrice',
+    sellprice: 'sellPrice',
+    'sell price': 'sellPrice',
+    'سعر البيع': 'sellPrice',
+    qty: 'qty',
+    quantity: 'qty',
+    الكمية: 'qty',
+    minqty: 'minQty',
+    'min qty': 'minQty',
+    'الحد الادنى': 'minQty',
+    'حد التنبيه': 'minQty',
+    unit: 'unit',
+    الوحدة: 'unit',
   };
 
   function escapeHtml(value) {
-    if (value === null || value === undefined) return '';
-    return String(value).replace(/[&<>"']/g, char => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[char]));
+    if (value === null || value === undefined) {
+      return '';
+    }
+    return String(value).replace(
+      /[&<>"']/g,
+      (char) =>
+        ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;',
+        })[char]
+    );
   }
 
   function roundMoney(value) {
@@ -30,7 +57,9 @@
   }
 
   function daysToExpiry(dateStr, now = new Date()) {
-    if (!dateStr) return null;
+    if (!dateStr) {
+      return null;
+    }
     try {
       const expiry = new Date(dateStr).setHours(0, 0, 0, 0);
       const today = new Date(now).setHours(0, 0, 0, 0);
@@ -43,7 +72,10 @@
   function todayArabic(now = new Date()) {
     try {
       return new Date(now).toLocaleDateString('ar-EG', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       });
     } catch (_) {
       return '';
@@ -53,8 +85,11 @@
   function formatDateShort(timestamp) {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleDateString('ar-EG', { month: '2-digit', day: '2-digit' }) + ' ' +
-        date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      return (
+        date.toLocaleDateString('ar-EG', { month: '2-digit', day: '2-digit' }) +
+        ' ' +
+        date.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+      );
     } catch (_) {
       return '';
     }
@@ -62,7 +97,9 @@
 
   function safeImageDataUrl(value) {
     const source = String(value || '');
-    if (source.length > 2 * 1024 * 1024) return '';
+    if (source.length > 2 * 1024 * 1024) {
+      return '';
+    }
     return /^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/=]+$/i.test(source) ? source : '';
   }
 
@@ -72,9 +109,20 @@
     let quoted = false;
     for (let i = 0; i < line.length; i += 1) {
       const char = line[i];
-      if (char === '"' && line[i + 1] === '"') { cell += '"'; i += 1; continue; }
-      if (char === '"') { quoted = !quoted; continue; }
-      if (char === delimiter && !quoted) { cells.push(cell.trim()); cell = ''; continue; }
+      if (char === '"' && line[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+        continue;
+      }
+      if (char === '"') {
+        quoted = !quoted;
+        continue;
+      }
+      if (char === delimiter && !quoted) {
+        cells.push(cell.trim());
+        cell = '';
+        continue;
+      }
       cell += char;
     }
     cells.push(cell.trim());
@@ -88,53 +136,92 @@
 
   function csvRecords(text) {
     const records = [];
-    let record = '', quoted = false;
+    let record = '',
+      quoted = false;
     const source = String(text || '').replace(/^\uFEFF/, '');
     for (let i = 0; i < source.length; i += 1) {
       const char = source[i];
-      if (char === '"' && source[i + 1] === '"') { record += '""'; i += 1; continue; }
-      if (char === '"') { quoted = !quoted; record += char; continue; }
+      if (char === '"' && source[i + 1] === '"') {
+        record += '""';
+        i += 1;
+        continue;
+      }
+      if (char === '"') {
+        quoted = !quoted;
+        record += char;
+        continue;
+      }
       if ((char === '\n' || char === '\r') && !quoted) {
-        if (char === '\r' && source[i + 1] === '\n') i += 1;
-        if (record.trim()) records.push(record);
+        if (char === '\r' && source[i + 1] === '\n') {
+          i += 1;
+        }
+        if (record.trim()) {
+          records.push(record);
+        }
         record = '';
         continue;
       }
       record += char;
     }
-    if (record.trim()) records.push(record);
+    if (record.trim()) {
+      records.push(record);
+    }
     return records;
   }
 
   function parseCSV(text) {
     let records = csvRecords(text);
-    if (records[0] && /^sep\s*=\s*[,;\t]$/i.test(records[0].trim())) records = records.slice(1);
-    if (records.length < 2) return [];
+    if (records[0] && /^sep\s*=\s*[,;\t]$/i.test(records[0].trim())) {
+      records = records.slice(1);
+    }
+    if (records.length < 2) {
+      return [];
+    }
     const delimiters = [',', ';', '\t'];
-    const delimiter = delimiters.sort((a, b) => csvCells(records[0], b).length - csvCells(records[0], a).length)[0];
+    const delimiter = delimiters.sort(
+      (a, b) => csvCells(records[0], b).length - csvCells(records[0], a).length
+    )[0];
     const headers = csvCells(records[0], delimiter).map(mapCsvHeader);
     const rows = [];
     for (let i = 1; i < records.length; i += 1) {
       const cells = csvCells(records[i], delimiter);
       const row = {};
-      headers.forEach((key, index) => { if (key) row[key] = (cells[index] || '').trim(); });
-      if (row.name) rows.push(row);
+      headers.forEach((key, index) => {
+        if (key) {
+          row[key] = (cells[index] || '').trim();
+        }
+      });
+      if (row.name) {
+        rows.push(row);
+      }
     }
     return rows;
   }
 
   function importNumber(value, fallback = 0) {
-    let normalized = String(value ?? '').trim()
-      .replace(/[٠-٩]/g, digit => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    let normalized = String(value ?? '')
+      .trim()
+      .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
       .replace(/[٫٬]/g, '.');
-    if (normalized.includes(',') && !normalized.includes('.')) normalized = normalized.replace(',', '.');
+    if (normalized.includes(',') && !normalized.includes('.')) {
+      normalized = normalized.replace(',', '.');
+    }
     normalized = normalized.replace(/\s/g, '').replace(/,/g, '');
     const number = parseFloat(normalized);
     return Number.isFinite(number) ? number : fallback;
   }
 
   global.MatgarUtils = Object.freeze({
-    escapeHtml, roundMoney, formatMoney, daysToExpiry, todayArabic, formatDateShort, safeImageDataUrl,
-    csvCells, mapCsvHeader, parseCSV, importNumber
+    escapeHtml,
+    roundMoney,
+    formatMoney,
+    daysToExpiry,
+    todayArabic,
+    formatDateShort,
+    safeImageDataUrl,
+    csvCells,
+    mapCsvHeader,
+    parseCSV,
+    importNumber,
   });
-}(window));
+})(window);

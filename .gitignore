@@ -9,13 +9,10 @@ service-account*.json
 .env
 .env.*
 !.env.example
-
 # تبعيات المشروع
 node_modules/
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
-
 # ملفات النظام
 .DS_Store
 Thumbs.db
@@ -25,19 +22,24 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 *.sublime-workspace
-
 # سجلات وملفات النشر
 *.log
 *.tar.gz
 dist/
 build/
 .out/
-
 # ملفات مؤقتة
 .tmp/
 .cache/
 *.pid
-
 # ملفات البناء
 .webpack/
 .next/
+# Secrets - لا ترفع أبداً
+serviceAccountKey.json
+.env.local
+*.key
+# Dependencies
+# Build
+coverage/
+# OS

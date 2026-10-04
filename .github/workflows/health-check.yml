@@ -1,0 +1,30 @@
+name: Health Check & Alert
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: فحص الموقع
+        id: check
+        run: |
+          URL="https://hemamahmod12-cloud.github.io/Matgar_elashry/"
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 15 "$URL" || echo "000")
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+      - name: تحذير عند الفشل
+        if: steps.check.outputs.status != '200'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 الموقع لا يستجيب',
+              body: `الحالة: ${{ steps.check.outputs.status }}\nالتوقيت: ${new Date().toISOString()}`,
+              labels: ['incident', 'urgent']
+            });

@@ -1,383 +1,386 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ساعة رقمية - مناطق زمنية متعددة</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            color: #333;
-        }
+      body {
+        font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        color: #333;
+      }
 
-        .container {
-            width: 100%;
-            max-width: 1200px;
-        }
+      .container {
+        width: 100%;
+        max-width: 1200px;
+      }
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
+      .header {
+        text-align: center;
+        color: white;
+        margin-bottom: 40px;
+      }
 
+      .header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .header p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+      }
+
+      .clocks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+      }
+
+      .clock-card {
+        background: white;
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        transition:
+          transform 0.3s ease,
+          box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .clock-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+      }
+
+      .timezone-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 15px;
+      }
+
+      .clock-display {
+        font-size: 3rem;
+        font-weight: bold;
+        font-family: 'Courier New', monospace;
+        color: #333;
+        letter-spacing: 3px;
+        margin-bottom: 10px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .date-display {
+        font-size: 0.95rem;
+        color: #666;
+        margin-bottom: 15px;
+      }
+
+      .time-info {
+        display: flex;
+        gap: 15px;
+        width: 100%;
+        justify-content: space-around;
+        padding-top: 15px;
+        border-top: 2px solid #f0f0f0;
+        font-size: 0.85rem;
+        color: #999;
+      }
+
+      .info-item {
+        text-align: center;
+      }
+
+      .info-label {
+        font-size: 0.75rem;
+        color: #bbb;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .info-value {
+        font-weight: bold;
+        color: #333;
+        margin-top: 3px;
+      }
+
+      .controls {
+        background: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        margin-bottom: 30px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: bold;
+        font-family: inherit;
+      }
+
+      .btn-add {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-add:hover {
+        background: #5568d3;
+        transform: scale(1.05);
+      }
+
+      .btn-reset {
+        background: #f0f0f0;
+        color: #333;
+      }
+
+      .btn-reset:hover {
+        background: #e0e0e0;
+      }
+
+      .timezone-select {
+        padding: 10px 15px;
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      .footer {
+        text-align: center;
+        color: white;
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+
+      .format-toggle {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .toggle-btn {
+        padding: 8px 16px;
+        border: 2px solid #667eea;
+        background: white;
+        color: #667eea;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s ease;
+      }
+
+      .toggle-btn.active {
+        background: #667eea;
+        color: white;
+      }
+
+      .toggle-btn:hover {
+        transform: scale(1.05);
+      }
+
+      @media (max-width: 768px) {
         .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .clocks-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .clock-card {
-            background: white;
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .clock-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
-        }
-
-        .timezone-name {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 15px;
+          font-size: 1.8rem;
         }
 
         .clock-display {
-            font-size: 3rem;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            color: #333;
-            letter-spacing: 3px;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+          font-size: 2rem;
         }
 
-        .date-display {
-            font-size: 0.95rem;
-            color: #666;
-            margin-bottom: 15px;
-        }
-
-        .time-info {
-            display: flex;
-            gap: 15px;
-            width: 100%;
-            justify-content: space-around;
-            padding-top: 15px;
-            border-top: 2px solid #f0f0f0;
-            font-size: 0.85rem;
-            color: #999;
-        }
-
-        .info-item {
-            text-align: center;
-        }
-
-        .info-label {
-            font-size: 0.75rem;
-            color: #bbb;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .info-value {
-            font-weight: bold;
-            color: #333;
-            margin-top: 3px;
+        .clocks-grid {
+          grid-template-columns: 1fr;
         }
 
         .controls {
-            background: white;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            margin-bottom: 30px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-            font-family: inherit;
-        }
-
-        .btn-add {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-add:hover {
-            background: #5568d3;
-            transform: scale(1.05);
-        }
-
-        .btn-reset {
-            background: #f0f0f0;
-            color: #333;
-        }
-
-        .btn-reset:hover {
-            background: #e0e0e0;
+          flex-direction: column;
         }
 
         .timezone-select {
-            padding: 10px 15px;
-            border: 2px solid #667eea;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            cursor: pointer;
-            font-family: inherit;
+          width: 100%;
         }
+      }
 
-        .footer {
-            text-align: center;
-            color: white;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-
-        .format-toggle {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .toggle-btn {
-            padding: 8px 16px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .toggle-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .toggle-btn:hover {
-            transform: scale(1.05);
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .clock-display {
-                font-size: 2rem;
-            }
-
-            .clocks-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .controls {
-                flex-direction: column;
-            }
-
-            .timezone-select {
-                width: 100%;
-            }
-        }
-
-        .no-clocks {
-            text-align: center;
-            padding: 40px;
-            background: white;
-            border-radius: 20px;
-            color: #999;
-            font-size: 1.1rem;
-        }
+      .no-clocks {
+        text-align: center;
+        padding: 40px;
+        background: white;
+        border-radius: 20px;
+        color: #999;
+        font-size: 1.1rem;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>🌍 ساعة المناطق الزمنية</h1>
-            <p>اعرض الوقت الحالي في مناطق مختلفة من العالم</p>
-        </div>
+      <div class="header">
+        <h1>🌍 ساعة المناطق الزمنية</h1>
+        <p>اعرض الوقت الحالي في مناطق مختلفة من العالم</p>
+      </div>
 
-        <div class="controls">
-            <select class="timezone-select" id="timezoneSelect">
-                <option value="">اختر منطقة زمنية</option>
-            </select>
-            <button class="btn btn-add" onclick="addTimezone()">➕ إضافة منطقة</button>
-            <div class="format-toggle">
-                <span>الصيغة:</span>
-                <button class="toggle-btn active" onclick="setFormat('12h')">12 ساعة</button>
-                <button class="toggle-btn" onclick="setFormat('24h')">24 ساعة</button>
-            </div>
-            <button class="btn btn-reset" onclick="resetClocks()">🔄 إعادة تعيين</button>
+      <div class="controls">
+        <select class="timezone-select" id="timezoneSelect">
+          <option value="">اختر منطقة زمنية</option>
+        </select>
+        <button class="btn btn-add" onclick="addTimezone()">➕ إضافة منطقة</button>
+        <div class="format-toggle">
+          <span>الصيغة:</span>
+          <button class="toggle-btn active" onclick="setFormat('12h')">12 ساعة</button>
+          <button class="toggle-btn" onclick="setFormat('24h')">24 ساعة</button>
         </div>
+        <button class="btn btn-reset" onclick="resetClocks()">🔄 إعادة تعيين</button>
+      </div>
 
-        <div class="clocks-grid" id="clocksContainer"></div>
+      <div class="clocks-grid" id="clocksContainer"></div>
 
-        <div class="footer">
-            <p>آخر تحديث: <span id="lastUpdate">الآن</span></p>
-        </div>
+      <div class="footer">
+        <p>آخر تحديث: <span id="lastUpdate">الآن</span></p>
+      </div>
     </div>
 
     <script>
-        let timeFormat = '12h'; // '12h' or '24h'
-        let timezones = [
-            { name: 'القاهرة - Egypt', timezone: 'Africa/Cairo' },
-            { name: 'لندن - UK', timezone: 'Europe/London' },
-            { name: 'نيويورك - USA', timezone: 'America/New_York' },
-            { name: 'طوكيو - Japan', timezone: 'Asia/Tokyo' },
-            { name: 'دبي - UAE', timezone: 'Asia/Dubai' },
-        ];
+      let timeFormat = '12h'; // '12h' or '24h'
+      let timezones = [
+        { name: 'القاهرة - Egypt', timezone: 'Africa/Cairo' },
+        { name: 'لندن - UK', timezone: 'Europe/London' },
+        { name: 'نيويورك - USA', timezone: 'America/New_York' },
+        { name: 'طوكيو - Japan', timezone: 'Asia/Tokyo' },
+        { name: 'دبي - UAE', timezone: 'Asia/Dubai' },
+      ];
 
-        // جميع المناطق الزمنية المتاحة
-        const allTimezones = [
-            { name: 'القاهرة - Egypt', timezone: 'Africa/Cairo' },
-            { name: 'لندن - UK', timezone: 'Europe/London' },
-            { name: 'باريس - France', timezone: 'Europe/Paris' },
-            { name: 'برلين - Germany', timezone: 'Europe/Berlin' },
-            { name: 'موسكو - Russia', timezone: 'Europe/Moscow' },
-            { name: 'دبي - UAE', timezone: 'Asia/Dubai' },
-            { name: 'إسطنبول - Turkey', timezone: 'Europe/Istanbul' },
-            { name: 'بانكوك - Thailand', timezone: 'Asia/Bangkok' },
-            { name: 'سنغافورة - Singapore', timezone: 'Asia/Singapore' },
-            { name: 'هونج كونج - Hong Kong', timezone: 'Asia/Hong_Kong' },
-            { name: 'طوكيو - Japan', timezone: 'Asia/Tokyo' },
-            { name: 'سيدني - Australia', timezone: 'Australia/Sydney' },
-            { name: 'نيويورك - USA', timezone: 'America/New_York' },
-            { name: 'لوس أنجلس - USA', timezone: 'America/Los_Angeles' },
-            { name: 'تورونتو - Canada', timezone: 'America/Toronto' },
-            { name: 'سيب - Brazil', timezone: 'America/Sao_Paulo' },
-            { name: 'مكسيكو سيتي - Mexico', timezone: 'America/Mexico_City' },
-            { name: 'جوهانسبرج - South Africa', timezone: 'Africa/Johannesburg' },
-            { name: 'دلهي - India', timezone: 'Asia/Kolkata' },
-            { name: 'كراتشي - Pakistan', timezone: 'Asia/Karachi' },
-            { name: 'بغداد - Iraq', timezone: 'Asia/Baghdad' },
-            { name: 'الرياض - Saudi Arabia', timezone: 'Asia/Riyadh' },
-            { name: 'أنقرة - Turkey', timezone: 'Europe/Istanbul' },
-            { name: 'هلسنكي - Finland', timezone: 'Europe/Helsinki' },
-            { name: 'ستوكهولم - Sweden', timezone: 'Europe/Stockholm' },
-        ];
+      // جميع المناطق الزمنية المتاحة
+      const allTimezones = [
+        { name: 'القاهرة - Egypt', timezone: 'Africa/Cairo' },
+        { name: 'لندن - UK', timezone: 'Europe/London' },
+        { name: 'باريس - France', timezone: 'Europe/Paris' },
+        { name: 'برلين - Germany', timezone: 'Europe/Berlin' },
+        { name: 'موسكو - Russia', timezone: 'Europe/Moscow' },
+        { name: 'دبي - UAE', timezone: 'Asia/Dubai' },
+        { name: 'إسطنبول - Turkey', timezone: 'Europe/Istanbul' },
+        { name: 'بانكوك - Thailand', timezone: 'Asia/Bangkok' },
+        { name: 'سنغافورة - Singapore', timezone: 'Asia/Singapore' },
+        { name: 'هونج كونج - Hong Kong', timezone: 'Asia/Hong_Kong' },
+        { name: 'طوكيو - Japan', timezone: 'Asia/Tokyo' },
+        { name: 'سيدني - Australia', timezone: 'Australia/Sydney' },
+        { name: 'نيويورك - USA', timezone: 'America/New_York' },
+        { name: 'لوس أنجلس - USA', timezone: 'America/Los_Angeles' },
+        { name: 'تورونتو - Canada', timezone: 'America/Toronto' },
+        { name: 'سيب - Brazil', timezone: 'America/Sao_Paulo' },
+        { name: 'مكسيكو سيتي - Mexico', timezone: 'America/Mexico_City' },
+        { name: 'جوهانسبرج - South Africa', timezone: 'Africa/Johannesburg' },
+        { name: 'دلهي - India', timezone: 'Asia/Kolkata' },
+        { name: 'كراتشي - Pakistan', timezone: 'Asia/Karachi' },
+        { name: 'بغداد - Iraq', timezone: 'Asia/Baghdad' },
+        { name: 'الرياض - Saudi Arabia', timezone: 'Asia/Riyadh' },
+        { name: 'أنقرة - Turkey', timezone: 'Europe/Istanbul' },
+        { name: 'هلسنكي - Finland', timezone: 'Europe/Helsinki' },
+        { name: 'ستوكهولم - Sweden', timezone: 'Europe/Stockholm' },
+      ];
 
-        function initializeSelects() {
-            const select = document.getElementById('timezoneSelect');
-            allTimezones.forEach(tz => {
-                const option = document.createElement('option');
-                option.value = tz.timezone;
-                option.textContent = tz.name;
-                select.appendChild(option);
-            });
+      function initializeSelects() {
+        const select = document.getElementById('timezoneSelect');
+        allTimezones.forEach((tz) => {
+          const option = document.createElement('option');
+          option.value = tz.timezone;
+          option.textContent = tz.name;
+          select.appendChild(option);
+        });
+      }
+
+      function getTimeForTimezone(timezone) {
+        try {
+          const now = new Date();
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: timeFormat === '12h',
+          });
+          return formatter.format(now);
+        } catch (e) {
+          return 'غير صحيح';
+        }
+      }
+
+      function getDateForTimezone(timezone) {
+        try {
+          const now = new Date();
+          const formatter = new Intl.DateTimeFormat('ar-EG', {
+            timeZone: timezone,
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+          return formatter.format(now);
+        } catch (e) {
+          return 'غير صحيح';
+        }
+      }
+
+      function getUTCOffsetForTimezone(timezone) {
+        try {
+          const now = new Date();
+          const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+          const tzDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+          const diff = (tzDate - utcDate) / 36e5; // الفرق بالساعات
+          const sign = diff >= 0 ? '+' : '';
+          return `UTC ${sign}${diff.toFixed(1)}`;
+        } catch (e) {
+          return 'UTC';
+        }
+      }
+
+      function renderClocks() {
+        const container = document.getElementById('clocksContainer');
+        container.innerHTML = '';
+
+        if (timezones.length === 0) {
+          container.innerHTML =
+            '<div class="no-clocks">لم تضف أي منطقة زمنية بعد. اختر واحدة من القائمة!</div>';
+          return;
         }
 
-        function getTimeForTimezone(timezone) {
-            try {
-                const now = new Date();
-                const formatter = new Intl.DateTimeFormat('en-US', {
-                    timeZone: timezone,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: timeFormat === '12h'
-                });
-                return formatter.format(now);
-            } catch (e) {
-                return 'غير صحيح';
-            }
-        }
+        timezones.forEach((tz, index) => {
+          const time = getTimeForTimezone(tz.timezone);
+          const date = getDateForTimezone(tz.timezone);
+          const offset = getUTCOffsetForTimezone(tz.timezone);
 
-        function getDateForTimezone(timezone) {
-            try {
-                const now = new Date();
-                const formatter = new Intl.DateTimeFormat('ar-EG', {
-                    timeZone: timezone,
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-                return formatter.format(now);
-            } catch (e) {
-                return 'غير صحيح';
-            }
-        }
-
-        function getUTCOffsetForTimezone(timezone) {
-            try {
-                const now = new Date();
-                const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-                const tzDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
-                const diff = (tzDate - utcDate) / 36e5; // الفرق بالساعات
-                const sign = diff >= 0 ? '+' : '';
-                return `UTC ${sign}${diff.toFixed(1)}`;
-            } catch (e) {
-                return 'UTC';
-            }
-        }
-
-        function renderClocks() {
-            const container = document.getElementById('clocksContainer');
-            container.innerHTML = '';
-
-            if (timezones.length === 0) {
-                container.innerHTML = '<div class="no-clocks">لم تضف أي منطقة زمنية بعد. اختر واحدة من القائمة!</div>';
-                return;
-            }
-
-            timezones.forEach((tz, index) => {
-                const time = getTimeForTimezone(tz.timezone);
-                const date = getDateForTimezone(tz.timezone);
-                const offset = getUTCOffsetForTimezone(tz.timezone);
-
-                const card = document.createElement('div');
-                card.className = 'clock-card';
-                card.innerHTML = `
+          const card = document.createElement('div');
+          card.className = 'clock-card';
+          card.innerHTML = `
                     <div class="timezone-name">${tz.name}</div>
                     <div class="clock-display">${time}</div>
                     <div class="date-display">${date}</div>
@@ -392,86 +395,86 @@
                         </div>
                     </div>
                 `;
-                container.appendChild(card);
-            });
+          container.appendChild(card);
+        });
 
-            updateLastUpdate();
+        updateLastUpdate();
+      }
+
+      function updateClocks() {
+        const cards = document.querySelectorAll('.clock-card');
+        cards.forEach((card, index) => {
+          const timeDisplay = card.querySelector('.clock-display');
+          const dateDisplay = card.querySelector('.date-display');
+          const offsetDisplay = card.querySelector('.info-value');
+
+          timeDisplay.textContent = getTimeForTimezone(timezones[index].timezone);
+          dateDisplay.textContent = getDateForTimezone(timezones[index].timezone);
+          offsetDisplay.textContent = getUTCOffsetForTimezone(timezones[index].timezone);
+        });
+
+        updateLastUpdate();
+      }
+
+      function updateLastUpdate() {
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('ar-EG', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+        document.getElementById('lastUpdate').textContent = formatter.format(now);
+      }
+
+      function addTimezone() {
+        const select = document.getElementById('timezoneSelect');
+        const selectedValue = select.value;
+
+        if (!selectedValue) {
+          alert('الرجاء اختيار منطقة زمنية أولاً');
+          return;
         }
 
-        function updateClocks() {
-            const cards = document.querySelectorAll('.clock-card');
-            cards.forEach((card, index) => {
-                const timeDisplay = card.querySelector('.clock-display');
-                const dateDisplay = card.querySelector('.date-display');
-                const offsetDisplay = card.querySelector('.info-value');
-
-                timeDisplay.textContent = getTimeForTimezone(timezones[index].timezone);
-                dateDisplay.textContent = getDateForTimezone(timezones[index].timezone);
-                offsetDisplay.textContent = getUTCOffsetForTimezone(timezones[index].timezone);
-            });
-
-            updateLastUpdate();
+        const timezone = allTimezones.find((tz) => tz.timezone === selectedValue);
+        if (timezone && !timezones.find((tz) => tz.timezone === selectedValue)) {
+          timezones.push(timezone);
+          select.value = '';
+          renderClocks();
+        } else if (timezones.find((tz) => tz.timezone === selectedValue)) {
+          alert('هذه المنطقة الزمنية موجودة بالفعل!');
         }
+      }
 
-        function updateLastUpdate() {
-            const now = new Date();
-            const formatter = new Intl.DateTimeFormat('ar-EG', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            document.getElementById('lastUpdate').textContent = formatter.format(now);
-        }
-
-        function addTimezone() {
-            const select = document.getElementById('timezoneSelect');
-            const selectedValue = select.value;
-
-            if (!selectedValue) {
-                alert('الرجاء اختيار منطقة زمنية أولاً');
-                return;
-            }
-
-            const timezone = allTimezones.find(tz => tz.timezone === selectedValue);
-            if (timezone && !timezones.find(tz => tz.timezone === selectedValue)) {
-                timezones.push(timezone);
-                select.value = '';
-                renderClocks();
-            } else if (timezones.find(tz => tz.timezone === selectedValue)) {
-                alert('هذه المنطقة الزمنية موجودة بالفعل!');
-            }
-        }
-
-        function removeTimezone(index) {
-            timezones.splice(index, 1);
-            renderClocks();
-        }
-
-        function resetClocks() {
-            timezones = [
-                { name: 'القاهرة - Egypt', timezone: 'Africa/Cairo' },
-                { name: 'لندن - UK', timezone: 'Europe/London' },
-                { name: 'نيويورك - USA', timezone: 'America/New_York' },
-                { name: 'طوكيو - Japan', timezone: 'Asia/Tokyo' },
-                { name: 'دبي - UAE', timezone: 'Asia/Dubai' },
-            ];
-            document.getElementById('timezoneSelect').value = '';
-            renderClocks();
-        }
-
-        function setFormat(format) {
-            timeFormat = format;
-            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            updateClocks();
-        }
-
-        // تهيئة
-        initializeSelects();
+      function removeTimezone(index) {
+        timezones.splice(index, 1);
         renderClocks();
+      }
 
-        // تحديث الساعات كل ثانية
-        setInterval(updateClocks, 1000);
+      function resetClocks() {
+        timezones = [
+          { name: 'القاهرة - Egypt', timezone: 'Africa/Cairo' },
+          { name: 'لندن - UK', timezone: 'Europe/London' },
+          { name: 'نيويورك - USA', timezone: 'America/New_York' },
+          { name: 'طوكيو - Japan', timezone: 'Asia/Tokyo' },
+          { name: 'دبي - UAE', timezone: 'Asia/Dubai' },
+        ];
+        document.getElementById('timezoneSelect').value = '';
+        renderClocks();
+      }
+
+      function setFormat(format) {
+        timeFormat = format;
+        document.querySelectorAll('.toggle-btn').forEach((btn) => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        updateClocks();
+      }
+
+      // تهيئة
+      initializeSelects();
+      renderClocks();
+
+      // تحديث الساعات كل ثانية
+      setInterval(updateClocks, 1000);
     </script>
-</body>
+  </body>
 </html>

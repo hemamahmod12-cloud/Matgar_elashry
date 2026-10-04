@@ -1,0 +1,54 @@
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+jobs:
+  quality-gate:
+    name: فحص الجودة والأمان
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --prefer-offline --no-audit
+      - name: ESLint
+        run: npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings 0
+      - name: Prettier
+        run: npx prettier --check "**/*.{js,jsx,ts,tsx,json,md,yml,yaml,css,html}"
+      - name: Audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: Tests
+        run: npm test -- --coverage --passWithNoTests
+        env:
+          CI: true
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+  build:
+    name: بناء المشروع
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build --if-present

@@ -34,18 +34,20 @@
     return collection('products')
       .where('deleted', '==', false)
       .orderBy('name')
-      .onSnapshot(snapshot => {
-        onChange(snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
+      .onSnapshot((snapshot) => {
+        onChange(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
       }, onError);
   }
 
   async function createSaleRequest(payload, providedRequestId) {
     const requestId = providedRequestId || createId();
-    await collection('saleRequests').doc(requestId).set({
-      ...payload,
-      status: 'pending',
-      createdAt: global.firebase.firestore.FieldValue.serverTimestamp()
-    });
+    await collection('saleRequests')
+      .doc(requestId)
+      .set({
+        ...payload,
+        status: 'pending',
+        createdAt: global.firebase.firestore.FieldValue.serverTimestamp(),
+      });
     return requestId;
   }
 
@@ -53,7 +55,7 @@
     try {
       const result = await Promise.race([
         functionsApi().httpsCallable('processSaleRequest')({ storeId: STORE_ID, requestId }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)),
       ]);
       return result.data;
     } catch (err) {
@@ -64,11 +66,13 @@
 
   async function createReturnRequest(payload) {
     const requestId = createId();
-    await collection('returnRequests').doc(requestId).set({
-      ...payload,
-      status: 'pending',
-      createdAt: global.firebase.firestore.FieldValue.serverTimestamp()
-    });
+    await collection('returnRequests')
+      .doc(requestId)
+      .set({
+        ...payload,
+        status: 'pending',
+        createdAt: global.firebase.firestore.FieldValue.serverTimestamp(),
+      });
     return requestId;
   }
 
@@ -76,7 +80,7 @@
     try {
       const result = await Promise.race([
         functionsApi().httpsCallable('processReturnRequest')({ storeId: STORE_ID, requestId }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), TIMEOUT_MS)),
       ]);
       return result.data;
     } catch (err) {
@@ -91,6 +95,6 @@
     createSaleRequest,
     processSaleRequest,
     createReturnRequest,
-    processReturnRequest
+    processReturnRequest,
   });
-}(window));
+})(window);
