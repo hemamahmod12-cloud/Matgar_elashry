@@ -1,0 +1,70 @@
+name: Compare Firestore Legacy and Collections Counts
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'Firebase project ID'
+        required: true
+        type: string
+        default: story-market-35565
+      store_id:
+        description: 'Store ID'
+        required: true
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firestore-count-comparison
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install comparison dependency
+        run: npm install --no-save --no-package-lock firebase-admin@^12.7.0
+
+      - name: Write temporary service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          node -e "const fs=require('fs'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/firebase-service-account.json')); console.log('service account JSON: valid')"
+
+      - name: Validate comparison source
+        run: node --check scripts/compare-store-data.cjs
+
+      - name: Compare counts read-only
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+          FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
+          FIREBASE_STORE_ID: ${{ inputs.store_id }}
+        run: node scripts/compare-store-data.cjs
+
+      - name: Upload comparison report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-count-comparison-${{ github.run_id }}
+          path: migration-artifacts/collections-count-comparison.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
