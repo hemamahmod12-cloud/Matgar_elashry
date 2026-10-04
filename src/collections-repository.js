@@ -1,4 +1,4 @@
-/* واجهة العميل للهيكل الجديد؛ لا تعدل المبيعات أو المخزون مباشرة. */
+/* واجهة العميل للهيكل الجديد؛ كل عنصر يُحفظ كمستند مستقل داخل stores/{storeId}. */
 (function (global) {
   'use strict';
 
@@ -30,13 +30,77 @@
     return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   }
 
+  function documentId(value, fallback) {
+    const id = String(value ?? '').trim();
+    return id || fallback || createId();
+  }
+
+  async function readCollection(name) {
+    const snapshot = await collection(name).get();
+    return snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
+  }
+
+  async function readState() {
+    const [products, sales, stockMoves, categories, settings, users, suppliers, parkedOrders, expenses] = await Promise.all([
+      readCollection('products'),
+      readCollection('sales'),
+      readCollection('stockMoves'),
+      readCollection('categories'),
+      collection('settings').doc('main').get(),
+      readCollection('users'),
+      readCollection('suppliers'),
+      readCollection('parkedOrders'),
+      readCollection('expenses')
+    ]);
+    return {
+      products: products.filter(item => item.deleted !== true),
+      sales: sales.sort((a, b) => Number(b.date || b.createdAt?.toMillis?.() || 0) - Number(a.date || a.createdAt?.toMillis?.() || 0)),
+      moves: stockMoves.sort((a, b) => Number(b.date || b.createdAt?.toMillis?.() || 0) - Number(a.date || a.createdAt?.toMillis?.() || 0)),
+      categories: categories.filter(item => item.deleted !== true).map(item => String(item.name || '')).filter(Boolean),
+      settings: settings.exists ? settings.data() : {},
+      users: users.filter(item => item.deleted !== true),
+      suppliers: suppliers.filter(item => item.deleted !== true),
+      parked: parkedOrders.filter(item => item.deleted !== true),
+      expenses: expenses.filter(item => item.deleted !== true)
+    };
+  }
+
+  function normalizeCategoryId(value, index) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, '-')
+      .replace(/^-+|-+$/g, '') || `category-${index + 1}`;
+  }
+
+  async function writeState(name, value) {
+    if (name === 'settings') {
+      await collection('settings').doc('main').set(value || {}, { merge: true });
+      return true;
+    }
+    const entries = Array.isArray(value) ? value : [];
+    const writer = db().bulkWriter();
+    entries.forEach((item, index) => {
+      const id = name === 'categories'
+        ? normalizeCategoryId(item, index)
+        : documentId(item && item.id, `${name}-${index + 1}`);
+      const data = name === 'categories' ? { name: String(item || ''), deleted: false } : { ...item };
+      writer.set(collection(name === 'moves' ? 'stockMoves' : name === 'parked' ? 'parkedOrders' : name).doc(id), data, { merge: true });
+    });
+    await writer.close();
+    return true;
+  }
+
+  function subscribeCollection(name, onChange, onError) {
+    return collection(name).onSnapshot(snapshot => {
+      onChange(snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
+    }, onError);
+  }
+
   function subscribeProducts(onChange, onError) {
-    return collection('products')
-      .where('deleted', '==', false)
-      .orderBy('name')
-      .onSnapshot(snapshot => {
-        onChange(snapshot.docs.map(item => ({ id: item.id, ...item.data() })));
-      }, onError);
+    return subscribeCollection('products', items => {
+      onChange(items.filter(item => item.deleted !== true).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar')));
+    }, onError);
   }
 
   async function createSaleRequest(payload, providedRequestId) {
@@ -87,6 +151,10 @@
 
   global.MatgarCollections = Object.freeze({
     collection,
+    readCollection,
+    readState,
+    writeState,
+    subscribeCollection,
     subscribeProducts,
     createSaleRequest,
     processSaleRequest,

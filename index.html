@@ -1102,6 +1102,23 @@ function dispatchOfflineQueueChanged(){
 
 async function loadAll(){
   try{
+    // المسار الجديد يقرأ كل كيان من مستند مستقل؛ لا نخلط بينه وبين
+    // مستندات storeData القديمة إلا إذا بقي العلم مغلقًا.
+    if(COLLECTIONS_BACKEND_ENABLED){
+      const next = await MatgarCollections.readState();
+      state.products = next.products || [];
+      state.sales = next.sales || [];
+      state.moves = next.moves || [];
+      state.categories = next.categories?.length ? next.categories : ['عام'];
+      state.settings = Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, next.settings || {});
+      state.users = next.users || [];
+      state.suppliers = next.suppliers || [];
+      state.parked = next.parked || [];
+      state.expenses = next.expenses || [];
+      storageOK = true;
+      storageMode = 'firebase';
+      return;
+    }
     // كل استدعاء يبدأ بفحص جديد؛ لا نُبقي تحذيرًا قديمًا إذا عادت القراءة
     // من Firebase للعمل في محاولة لاحقة.
     firebaseReadFailed = false;
@@ -1141,6 +1158,10 @@ function simpleHash(str){
 async function save(which){
   if(!storageOK) return false;
   try{
+    if(COLLECTIONS_BACKEND_ENABLED){
+      await MatgarCollections.writeState(which, state[which]);
+      return true;
+    }
     const result = await storageSet(KEYS[which], JSON.stringify(state[which]));
     return result !== false;
   }catch(e){
@@ -1162,6 +1183,21 @@ function stopRealtimeSync(){
 function startRealtimeSync(){
   if(!db) return;
   stopRealtimeSync();
+  if(COLLECTIONS_BACKEND_ENABLED){
+    const rerender = () => {
+      if(!currentUser) return;
+      const modalOpen = document.getElementById('modalBack').classList.contains('open');
+      if(!modalOpen){ applyRolePermissions(); renderAll(); }
+    };
+    realtimeUnsubs.push(MatgarCollections.subscribeProducts(items => { state.products = items; rerender(); }, () => {}));
+    realtimeUnsubs.push(MatgarCollections.subscribeCollection('sales', items => {
+      state.sales = items.sort((a,b) => Number(b.date || 0) - Number(a.date || 0)); rerender();
+    }, () => {}));
+    realtimeUnsubs.push(MatgarCollections.subscribeCollection('stockMoves', items => {
+      state.moves = items.sort((a,b) => Number(b.date || 0) - Number(a.date || 0)); rerender();
+    }, () => {}));
+    return;
+  }
   Object.entries(KEYS).forEach(([stateKey, docKey]) => {
     const unsub = firestoreRepository.subscribe(docKey, raw => {
       if(!currentUser) return;
@@ -2883,7 +2919,15 @@ function openSaleDetail(saleId){
       const btn = document.getElementById('returnSaleBtn');
       if(btn){ btn.disabled = true; btn.textContent = 'جاري الاسترجاع...'; }
       try{
-        if(db && storageMode === 'firebase'){
+        if(COLLECTIONS_BACKEND_ENABLED){
+          const requestId = await MatgarCollections.createReturnRequest({
+            cashierId: currentUser.id,
+            saleId: s.id,
+            items: s.items.map(item => ({ productId: item.productId, qty: item.qty }))
+          });
+          await MatgarCollections.processReturnRequest(requestId);
+          await loadAll();
+        } else if(db && storageMode === 'firebase'){
           // نفس أسلوب الحماية المستخدم في عملية البيع: معاملة ذرية تقرأ
           // أحدث نسخة من المستندات وقت التنفيذ، عشان لو حركة مخزون أو بيع
           // تاني حصل في نفس اللحظة على جهاز تاني، محدش يمسح تعديل التاني.
