@@ -1076,7 +1076,12 @@ async function syncDirtyLocalData(){
 
 function requireCloudForSensitiveWrite(){
   if(!navigator.onLine) return true;
-  if(db && storageMode !== 'firebase'){
+  // وجود Firestore هو معيار السماح بمحاولة البيع؛ وضع firebase-fallback
+  // قد ينتج عن مستند اختياري أو قراءة قديمة، ولا يعني أن معاملة البيع
+  // نفسها غير متاحة. نترك Firestore يعيد الخطأ الحقيقي إن كانت الصلاحية
+  // أو الشبكة غير متاحة بدل رفض الفاتورة مسبقًا برسالة مضللة.
+  if(db) return true;
+  if(!hasClaudeStorage && !window.indexedDB){
     toast('الاتصال السحابي غير متاح. لم يتم حفظ العملية حتى لا تختلف البيانات بين الأجهزة.');
     return false;
   }
@@ -1973,7 +1978,7 @@ async function confirmSale(options = {}){
         cashierName: currentUser ? currentUser.name : '', returned:false
       };
       state.sales = [sale, ...state.sales];
-    } else if(db && storageMode === 'firebase'){
+    } else if(db){
       // معاملة ذرية (transaction): بتقرأ أحدث نسخة من المخزون والفواتير في
       // نفس لحظة الحفظ، مش النسخة القديمة المخزّنة عندك في المتصفح.
       // فلو كاشيرين اتنين بيبيعوا في نفس اللحظة بالظبط، Firebase بيعيد
