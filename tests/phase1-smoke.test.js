@@ -33,4 +33,8 @@ assert.doesNotThrow(() => MatgarSales.validatePayment({ total: 22.8, paymentMeth
 assert.doesNotThrow(() => MatgarSales.validatePayment({ total: 22.8, paymentMethod: 'محفظة', walletBalance: 25 }));
 assert.throws(() => MatgarSales.validatePayment({ total: 22.8, paymentMethod: 'محفظة', walletBalance: 20 }), /insufficient-wallet-balance/);
 
+const appHtml = fs.readFileSync('index.html', 'utf8');
+assert.match(appHtml, /async function syncDirtyLocalData\(\)\{[\s\S]*?if\(!navigator\.onLine \|\| !db \|\| !currentUser\) return;/);
+assert.doesNotMatch(appHtml, /syncDirtyLocalData\(\)\{[\s\S]*?storageMode !== 'firebase'/);
+
 console.log('phase1 smoke tests: OK');

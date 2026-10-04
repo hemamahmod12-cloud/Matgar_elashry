@@ -1063,7 +1063,9 @@ async function storageSet(key, value){
 }
 
 async function syncDirtyLocalData(){
-  if(!navigator.onLine || !db || !currentUser || storageMode !== 'firebase') return;
+  // بعد العمل دون إنترنت تظل storageMode = browser-offline حتى تعود الشبكة؛
+  // لا تجعل هذه الحالة المزامنة تخرج مبكرًا، ما دام Firestore والمستخدم متاحين.
+  if(!navigator.onLine || !db || !currentUser) return;
   for(const key of readOfflineDirty()){
     try{
       const value = await idbGet(key);
