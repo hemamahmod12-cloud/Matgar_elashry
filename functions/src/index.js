@@ -215,6 +215,25 @@ exports.processReturnRequest = onCall(async request => {
     const requestedItems = Array.isArray(returnRequest.items) && returnRequest.items.length
       ? returnRequest.items
       : sale.items;
+    const soldQuantities = new Map();
+    for (const soldItem of sale.items || []) {
+      const productId = String(soldItem.productId || '');
+      soldQuantities.set(productId, (soldQuantities.get(productId) || 0) + Number(soldItem.qty || 0));
+    }
+    const requestedQuantities = new Map();
+    for (const requestedItem of requestedItems) {
+      const productId = String(requestedItem.productId || '');
+      const qty = Number(requestedItem.qty);
+      if (!productId || !Number.isInteger(qty) || qty <= 0) {
+        throw new HttpsError('invalid-argument', 'بيانات الاسترجاع غير صالحة');
+      }
+      requestedQuantities.set(productId, (requestedQuantities.get(productId) || 0) + qty);
+    }
+    for (const [productId, qty] of requestedQuantities) {
+      if (!soldQuantities.has(productId) || qty > soldQuantities.get(productId)) {
+        throw new HttpsError('failed-precondition', 'كمية الاسترجاع تتجاوز الكمية المباعة');
+      }
+    }
     const productRefs = requestedItems.map(item => store.collection('products').doc(String(item.productId || '')));
     const productSnapshots = await Promise.all(productRefs.map(ref => transaction.get(ref)));
     const now = FieldValue.serverTimestamp();

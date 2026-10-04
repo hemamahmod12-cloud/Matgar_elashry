@@ -30,5 +30,7 @@ assert.equal(sale.total, 22.8);
 assert.equal(sale.change, 2.2);
 assert.throws(() => MatgarSales.validatePayment({ total: 22.8, paymentMethod: 'نقدي', received: 20 }), /insufficient-payment/);
 assert.doesNotThrow(() => MatgarSales.validatePayment({ total: 22.8, paymentMethod: 'بطاقة', received: 0 }));
+assert.doesNotThrow(() => MatgarSales.validatePayment({ total: 22.8, paymentMethod: 'محفظة', walletBalance: 25 }));
+assert.throws(() => MatgarSales.validatePayment({ total: 22.8, paymentMethod: 'محفظة', walletBalance: 20 }), /insufficient-wallet-balance/);
 
 console.log('phase1 smoke tests: OK');
