@@ -56,7 +56,8 @@ nav.tabbar button.active{background:linear-gradient(90deg,rgba(235,202,145,.28),
 nav.tabbar button.active::before{background:#e7c078!important}
 
 /* الكاشير: تخطيط عملي ومربعات منتظمة */
-#view-cashier.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,370px);grid-template-areas:"search cart" "categories cart" "parked cart" "products cart" "more cart";gap:14px 22px;align-items:start}
+#view-cashier.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,370px);grid-template-areas:"head head" "search cart" "categories cart" "parked cart" "products cart" "more cart";gap:14px 22px;align-items:start}
+#view-cashier>.page-head{grid-area:head;width:100%;}
 #view-cashier>.search-wrap{grid-area:search;width:100%;margin:0;padding:10px;background:rgba(255,250,242,.76);border:1px solid var(--velvet-line);border-radius:18px;box-shadow:var(--velvet-shadow)}
 #view-cashier>.chips{grid-area:categories}
 #view-cashier>#parkedSection{grid-area:parked}
@@ -64,6 +65,7 @@ nav.tabbar button.active::before{background:#e7c078!important}
 #view-cashier>#posLoadMoreWrap{grid-area:more}
 #view-cashier>#cartSection{grid-area:cart;min-width:0;position:sticky;top:20px;z-index:3}
 #view-cashier>#cartSection:empty{display:none}
+#view-cashier:has(>#cartSection:empty){grid-template-columns:minmax(0,1fr);grid-template-areas:"head" "search" "categories" "parked" "products" "more";}
 #view-cashier>.search-wrap input{min-height:50px!important;border-radius:14px!important;font-size:15px}
 #view-cashier>.search-wrap .barcode-camera-btn{min-height:50px!important;min-width:50px;border-radius:14px!important;background:#f1e3cf!important;color:#765239!important;border-color:#d6b88e!important}
 

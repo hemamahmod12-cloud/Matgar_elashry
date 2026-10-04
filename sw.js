@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v13';
+const CACHE_NAME = 'matgar-elashry-shell-v14';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
@@ -14,14 +14,12 @@ const SAME_ORIGIN_SHELL = [
   './src/store-repository.js',
   './src/collections-repository.js',
   './src/offline-queue.js',
-  './src/offline-status.js',
-  './src/xlsx.full.min.js'
+  './src/offline-status.js'
 ];
 const THIRD_PARTY_SHELL = [
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js',
-  'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
-  'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js'
+  'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js'
 ];
 
 async function cacheRequest(cache, url, options) {

@@ -19,7 +19,7 @@ assert.doesNotMatch(categoryPatch, /(?<![.\w])activeProducts\(\)/);
 assert.match(categoryPatch, /app\.activeProducts\(\)/);
 assert.match(queue, /let dbPromise = null;/);
 assert.match(queue, /if \(dbPromise\) return dbPromise;/);
-assert.match(sw, /matgar-elashry-shell-v13/);
+assert.match(sw, /matgar-elashry-shell-v14/);
 assert.match(sw, /\.\/src\/performance-metrics\.js/);
 
 const context = { window: {}, performance: { now: () => 100 } };
