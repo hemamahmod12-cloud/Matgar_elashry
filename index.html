@@ -1961,6 +1961,10 @@ function renderPayModal(){
       <label>المبلغ المستلم من العميل</label>
       <input type="number" inputmode="decimal" id="cashReceived" placeholder="0.00">
     </div>
+    <div class="field" id="walletBalanceField" style="display:none;">
+      <label>الرصيد المتاح في المحفظة</label>
+      <input type="number" inputmode="decimal" id="walletBalance" placeholder="0.00">
+    </div>
     <div class="field">
       <label>الباقي للعميل</label>
       <input id="changeDue" value="${money(0)}" disabled>
@@ -1968,13 +1972,14 @@ function renderPayModal(){
     <button class="btn btn-primary btn-block" id="confirmSaleBtn">تأكيد البيع وطباعة الفاتورة</button>
   `);
       function recalc(){
-        const payment = MatgarSales.calculateSale({
-          lines: cart,
-          discount: document.getElementById('discountInput').value,
-          taxRate: state.settings.taxRate || 0,
-          paymentMethod: document.getElementById('paymentMethod').value,
-          received: document.getElementById('cashReceived').value
-        });
+      const payment = MatgarSales.calculateSale({
+        lines: cart,
+        discount: document.getElementById('discountInput').value,
+        taxRate: state.settings.taxRate || 0,
+        paymentMethod: document.getElementById('paymentMethod').value,
+        received: document.getElementById('cashReceived').value,
+        walletBalance: document.getElementById('walletBalance')?.value
+      });
         document.getElementById('sumDiscount').textContent = money(payment.discount);
         document.getElementById('sumTax').textContent = money(payment.tax);
         document.getElementById('sumTotal').textContent = money(payment.total);
@@ -1983,6 +1988,12 @@ function renderPayModal(){
   }
   document.getElementById('discountInput').addEventListener('input', recalc);
   document.getElementById('cashReceived').addEventListener('input', recalc);
+  document.getElementById('walletBalance').addEventListener('input', recalc);
+  document.getElementById('paymentMethod').addEventListener('change', () => {
+    const isWallet = document.getElementById('paymentMethod').value === 'محفظة';
+    document.getElementById('walletBalanceField').style.display = isWallet ? 'block' : 'none';
+    recalc();
+  });
   document.getElementById('cashReceived').focus();
 }
 
@@ -2017,6 +2028,7 @@ async function confirmSaleViaCollections(payment){
     total: payment.total,
     paymentMethod: payment.paymentMethod,
     received: payment.received,
+    walletBalance: payment.walletBalance,
     clientOperationId: activeOfflineOperationId || null
   }, activeOfflineOperationId || undefined);
   return MatgarCollections.processSaleRequest(requestId);
@@ -2031,13 +2043,15 @@ async function confirmSale(options = {}){
     if(!window.MatgarOfflineQueue){ toast('التخزين المحلي غير متاح؛ لم يتم حفظ البيع'); return null; }
     const paymentMethod = document.getElementById('paymentMethod').value;
     const received = parseFloat(document.getElementById('cashReceived').value) || 0;
+    const walletBalance = parseFloat(document.getElementById('walletBalance')?.value) || 0;
     const cartLines = cart.map(c => ({...c}));
     const payment = MatgarSales.calculateSale({
       lines: cartLines,
       discount: document.getElementById('discountInput').value,
       taxRate: state.settings.taxRate || 0,
       paymentMethod,
-      received
+      received,
+      walletBalance
     });
     MatgarSales.validatePayment(payment);
     const clientOperationId = createClientOperationId();
@@ -2052,6 +2066,7 @@ async function confirmSale(options = {}){
       total: payment.total,
       paymentMethod,
       received: payment.received,
+      walletBalance: payment.walletBalance,
       change: payment.change,
       shiftId: saleShiftId
     });
@@ -2077,6 +2092,9 @@ async function confirmSale(options = {}){
     const received = fromOfflineQueue
       ? (Number(options.payload?.received) || 0)
       : (parseFloat(cashReceivedEl?.value) || 0);
+    const walletBalance = fromOfflineQueue
+      ? (Number(options.payload?.walletBalance) || 0)
+      : (parseFloat(document.getElementById('walletBalance')?.value) || 0);
     const cartLines = cart.map(c => ({...c}));
     const payment = MatgarSales.calculateSale({
       lines: cartLines,
@@ -2085,7 +2103,8 @@ async function confirmSale(options = {}){
         : (discountInputEl?.value || 0),
       taxRate: state.settings.taxRate || 0,
       paymentMethod,
-      received
+      received,
+      walletBalance
     });
     MatgarSales.validatePayment(payment);
     const { subtotal, discount, tax, total, change } = payment;
@@ -2099,7 +2118,7 @@ async function confirmSale(options = {}){
         invoiceNo: result.invoiceNo,
         date: Date.now(),
         items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, discount:c.discount||0 })),
-        subtotal, discount, tax, total, paymentMethod, received, change,
+        subtotal, discount, tax, total, paymentMethod, received, walletBalance: payment.walletBalance, change,
         cashierName: currentUser ? currentUser.name : '', returned:false
       };
       state.sales = [sale, ...state.sales];
@@ -2142,7 +2161,7 @@ async function confirmSale(options = {}){
         sale = {
           id: uid(), invoiceNo, date: Date.now(), clientOperationId: activeOfflineOperationId || null,
           items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-          subtotal, discount, tax, total, paymentMethod, received, change, shiftId:saleShiftId,
+          subtotal, discount, tax, total, paymentMethod, received, walletBalance: payment.walletBalance, change, shiftId:saleShiftId,
           cashierName: currentUser ? currentUser.name : '', returned:false
         };
         cartLines.forEach(c => {
@@ -2181,7 +2200,7 @@ async function confirmSale(options = {}){
         sale = {
           id: uid(), invoiceNo, date: Date.now(), clientOperationId: activeOfflineOperationId || null,
           items: cartLines.map(c => ({ productId:c.productId, name:c.name, qty:c.qty, price:c.price, buyPrice:c.buyPrice, discount:c.discount||0 })),
-          subtotal, discount, tax, total, paymentMethod, received, change, shiftId:saleShiftId,
+          subtotal, discount, tax, total, paymentMethod, received, walletBalance: payment.walletBalance, change, shiftId:saleShiftId,
           cashierName: currentUser ? currentUser.name : '', returned:false
         };
         cartLines.forEach(c => {
@@ -2217,6 +2236,8 @@ async function confirmSale(options = {}){
         if(fromOfflineQueue) throw e;
         if(e && e.message === 'insufficient-payment'){
           toast('المبلغ المستلم أقل من إجمالي الفاتورة');
+        } else if(e && e.message === 'insufficient-wallet-balance'){
+          toast('رصيد المحفظة أقل من إجمالي الفاتورة');
         } else if(e && e.message === 'insufficient-stock' && Array.isArray(e.insufficient)){
       const lines = e.insufficient.map(x => `${x.name} (متاح: ${x.available}، مطلوب: ${x.requested})`);
       openModal(`
@@ -2250,7 +2271,7 @@ async function syncOfflineSales(manual = false){
     for(const operation of pending){
       const payload = operation.payload || {};
       const originalCart = cart;
-      const originalFields = ['paymentMethod','cashReceived','discountInput'].reduce((all, id) => {
+      const originalFields = ['paymentMethod','cashReceived','walletBalance','discountInput'].reduce((all, id) => {
         const el = document.getElementById(id);
         all[id] = el ? el.value : null;
         return all;
@@ -2259,9 +2280,11 @@ async function syncOfflineSales(manual = false){
       cart = (payload.items || []).map(item => ({...item}));
       const paymentMethod = document.getElementById('paymentMethod');
       const cashReceived = document.getElementById('cashReceived');
+      const walletBalance = document.getElementById('walletBalance');
       const discountInput = document.getElementById('discountInput');
       if(paymentMethod) paymentMethod.value = payload.paymentMethod || 'نقدي';
       if(cashReceived) cashReceived.value = payload.received || 0;
+      if(walletBalance) walletBalance.value = payload.walletBalance || 0;
       if(discountInput) discountInput.value = payload.discount || 0;
       await window.MatgarOfflineQueue.update(operation.clientOperationId, {
         status:'pending', attempts:(operation.attempts || 0) + 1, lastAttemptAt:Date.now(), lastError:null
@@ -2272,7 +2295,7 @@ async function syncOfflineSales(manual = false){
         await window.MatgarOfflineQueue.remove(operation.clientOperationId);
         synced += 1;
       }catch(error){
-        const permanent = error && (error.message === 'insufficient-stock' || error.message === 'insufficient-payment');
+        const permanent = error && (error.message === 'insufficient-stock' || error.message === 'insufficient-payment' || error.message === 'insufficient-wallet-balance');
         await window.MatgarOfflineQueue.update(operation.clientOperationId, {
           status: permanent ? 'failed' : 'pending',
           lastError: error?.message || 'sync-failed',
@@ -2573,6 +2596,7 @@ function openProductForm(p, overrides){
     }
     const saveBtn = document.getElementById('saveProdBtn');
     saveBtn.disabled = true; saveBtn.textContent = 'جاري الحفظ...';
+    const originalProduct = editing ? { ...p } : null;
     if(editing){
       Object.assign(p, data);
       logAudit('تعديل منتج', 'products', { name: p.name, id: p.id });
@@ -2586,7 +2610,19 @@ function openProductForm(p, overrides){
       }
       logAudit('إضافة منتج', 'products', { name: data.name, id: data.id });
     }
-    await save('products');
+    const productsSaved = await save('products');
+    if(!productsSaved){
+      if(editing && originalProduct) Object.assign(p, originalProduct);
+      else {
+        state.products = state.products.filter(item => item.id !== data.id);
+        state.moves = state.moves.filter(move => move.productId !== data.id || move.reason !== 'رصيد افتتاحي');
+      }
+      errEl.textContent = 'تعذر حفظ السعر. تحقق من الاتصال وحاول مرة أخرى؛ لم يتم إغلاق النموذج.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      saveBtn.textContent = editing ? 'حفظ التعديلات' : 'إضافة المنتج';
+      return;
+    }
     closeModal();
     renderProdMgmt(); renderPosChips(); renderPosList(); renderStockView(); renderReports();
   });
