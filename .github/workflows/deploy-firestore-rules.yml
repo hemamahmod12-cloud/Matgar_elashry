@@ -1,6 +1,13 @@
 name: Deploy Firestore Rules
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - firestore.rules
+      - firebase.json
+      - .github/workflows/deploy-firestore-rules.yml
   workflow_dispatch:
 
 permissions:
@@ -9,6 +16,7 @@ permissions:
 jobs:
   deploy-rules:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +30,7 @@ jobs:
         run: |
           test -n "$FIREBASE_SERVICE_ACCOUNT"
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.RUNNER_TEMP + '/firebase-service-account.json')); console.log('service account JSON: valid')"
 
       - name: Deploy Firestore rules only
         env:
