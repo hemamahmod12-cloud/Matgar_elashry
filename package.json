@@ -1,42 +1,49 @@
 {
   "name": "matgar_elashry_upgrade",
   "version": "1.0.0",
-  "main": "category-filter-patch.js",
-  "directories": {
-    "doc": "docs",
-    "test": "tests"
-  },
-  "scripts": {
-    "test": "node tests/phase1-smoke.test.js && node tests/store-repository-smoke.test.js && node tests/firestore-rules-smoke.test.js",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
-    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml,css,html}\"",
-    "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,md,yml,yaml,css,html}\"",
-    "test:coverage": "npm test",
-    "migrate:roles": "node scripts/migrate-roles.js",
-    "precommit": "npm run lint && npm run format:check && npm test"
-  },
+  "private": true,
+  "main": "index.html",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hemamahmod12-cloud/Matgar_elashry.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/hemamahmod12-cloud/Matgar_elashry/issues"
+  "homepage": "https://hemamahmod12-cloud.github.io/Matgar_elashry/",
+  "description": "Production-ready upgrade for Matgar Elashry store platform",
+  "scripts": {
+    "lint": "eslint . --ext .js,.cjs,.mjs --ignore-pattern 'node_modules/' --ignore-pattern 'coverage/'",
+    "lint:fix": "eslint . --ext .js,.cjs,.mjs --fix --ignore-pattern 'node_modules/' --ignore-pattern 'coverage/'",
+    "format": "prettier --write \"**/*.{js,cjs,mjs,json,md,yml,yaml,css,html}\"",
+    "format:check": "prettier --check \"**/*.{js,cjs,mjs,json,md,yml,yaml,css,html}\"",
+    "test": "jest --coverage --runInBand",
+    "test:watch": "jest --watch",
+    "migrate:roles": "node scripts/migrate-roles.js",
+    "verify:setup": "bash scripts/verify-setup.sh",
+    "precommit": "npm run lint && npm run format:check && npm test"
   },
-  "homepage": "https://github.com/hemamahmod12-cloud/Matgar_elashry#readme",
-  "description": "",
   "devDependencies": {
-    "eslint": "^8.57.1",
-    "firebase-admin": "^14.5.0",
-    "husky": "^9.1.7",
-    "jest": "^30.5.2",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.9.9"
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "jest": "^30.0.0",
+    "prettier": "^3.4.2"
   },
-  "overrides": {
-    "uuid": "^11.1.1"
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "scripts/**/*.js",
+      "!scripts/**/node_modules/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    }
   }
 }
