@@ -13,6 +13,7 @@ assert.match(html, /const pendingSaves = new Map\(\)/);
 assert.match(html, /setTimeout\(async \(\) => \{/);
 assert.match(html, /function rebuildProductIndex\(\)/);
 assert.match(html, /function scheduleRender\(\)/);
+assert.equal((html.match(/renderCart\(\); renderPosList\(\); renderStockView\(\); renderReports\(\);/g) || []).length, 0);
 assert.match(html, /storage\.cacheHit/);
 assert.match(html, /id="walletBalance"/);
 assert.match(html, /walletBalance: payment\.walletBalance/);

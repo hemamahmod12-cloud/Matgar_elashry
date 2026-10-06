@@ -2232,7 +2232,7 @@ async function confirmSale(options = {}){
     if(!silent) showReceipt(sale);
     if(!fromOfflineQueue){
       cart = [];
-      renderCart(); renderPosList(); renderStockView(); renderReports();
+      scheduleRender();
     }
     return sale;
       }catch(e){
@@ -2332,7 +2332,7 @@ async function syncOfflineSales(manual = false){
   }finally{
     activeOfflineOperationId = null;
     offlineSyncInProgress = false;
-    renderCart(); renderPosList(); renderStockView(); renderReports();
+    scheduleRender();
     dispatchOfflineQueueChanged();
   }
   if(manual) toast(synced ? `تمت مزامنة ${synced} فاتورة بنجاح` : 'لم تتم مزامنة أي فاتورة؛ راجع مركز المزامنة');
