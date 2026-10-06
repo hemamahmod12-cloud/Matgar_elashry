@@ -25,6 +25,13 @@ assert.doesNotMatch(categoryPatch, /(?<![.\w])activeProducts\(\)/);
 assert.match(categoryPatch, /app\.activeProducts\(\)/);
 assert.match(queue, /let dbPromise = null;/);
 assert.match(queue, /if \(dbPromise\) return dbPromise;/);
+assert.match(queue, /status === 'pending' && Number\(item\.nextAttemptAt \|\| 0\) <= now/);
+assert.match(queue, /recoverStaleSyncing/);
+assert.match(queue, /status === 'syncing'/);
+assert.match(html, /status:'syncing', attempts:attempt/);
+assert.match(html, /const retryDelay = Math\.min\(60000/);
+assert.match(html, /status: permanent \|\| exhausted \? 'failed' : 'pending'/);
+assert.match(html, /nextAttemptAt:0/);
 assert.match(sw, /matgar-elashry-shell-v15/);
 assert.match(sw, /\.\/src\/performance-metrics\.js/);
 

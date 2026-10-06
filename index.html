@@ -2272,6 +2272,8 @@ async function syncOfflineSales(manual = false){
   if(!window.MatgarOfflineQueue || !navigator.onLine || offlineSyncInProgress || !currentUser) return;
   let pending;
   try{
+    // إذا أُغلقت الصفحة أثناء الإرسال فلا نترك الفاتورة عالقة إلى الأبد.
+    await window.MatgarOfflineQueue.recoverStaleSyncing?.();
     pending = await window.MatgarOfflineQueue.pending();
   }catch(error){
     console.error('offline queue read failed', error);
@@ -2287,6 +2289,7 @@ async function syncOfflineSales(manual = false){
   let synced = 0;
   try{
     for(const operation of pending){
+      if(!navigator.onLine) break;
       const payload = operation.payload || {};
       const originalCart = cart;
       const originalFields = ['paymentMethod','cashReceived','walletBalance','discountInput'].reduce((all, id) => {
@@ -2304,8 +2307,9 @@ async function syncOfflineSales(manual = false){
       if(cashReceived) cashReceived.value = payload.received || 0;
       if(walletBalance) walletBalance.value = payload.walletBalance || 0;
       if(discountInput) discountInput.value = payload.discount || 0;
+      const attempt = (operation.attempts || 0) + 1;
       await window.MatgarOfflineQueue.update(operation.clientOperationId, {
-        status:'pending', attempts:(operation.attempts || 0) + 1, lastAttemptAt:Date.now(), lastError:null
+        status:'syncing', attempts:attempt, lastAttemptAt:Date.now(), lastError:null, nextAttemptAt:0
       });
       try{
         const sale = await confirmSale({ fromOfflineQueue:true, silent:true, payload });
@@ -2314,10 +2318,13 @@ async function syncOfflineSales(manual = false){
         synced += 1;
       }catch(error){
         const permanent = error && (error.message === 'insufficient-stock' || error.message === 'insufficient-payment' || error.message === 'insufficient-wallet-balance');
+        const exhausted = attempt >= 5;
+        const retryDelay = Math.min(60000, 2000 * (2 ** Math.max(0, attempt - 1)));
         await window.MatgarOfflineQueue.update(operation.clientOperationId, {
-          status: permanent ? 'failed' : 'pending',
+          status: permanent || exhausted ? 'failed' : 'pending',
           lastError: error?.message || 'sync-failed',
-          lastErrorAt: Date.now()
+          lastErrorAt: Date.now(),
+          nextAttemptAt: permanent || exhausted ? 0 : Date.now() + retryDelay
         });
         if(!navigator.onLine) break;
       }finally{
@@ -2344,7 +2351,7 @@ async function retryOfflineQueue(){
   let failed;
   try{ failed = (await window.MatgarOfflineQueue.list()).filter(item => item.status === 'failed'); }
   catch(error){ console.error('offline queue list failed', error); toast('تعذر قراءة الفواتير المعلقة'); return; }
-  await Promise.all(failed.map(item => window.MatgarOfflineQueue.update(item.clientOperationId, { status:'pending', lastError:null })));
+  await Promise.all(failed.map(item => window.MatgarOfflineQueue.update(item.clientOperationId, { status:'pending', lastError:null, nextAttemptAt:0 })));
   await syncOfflineSales(true);
 }
 

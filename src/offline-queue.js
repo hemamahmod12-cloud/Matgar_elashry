@@ -6,6 +6,7 @@
   const DB_VERSION = 2;
   const OUTBOX = 'outbox';
   const MAX_ATTEMPTS = 5;
+  const STALE_SYNCING_MS = 5 * 60 * 1000;
   let dbPromise = null;
 
   function openDb() {
@@ -58,11 +59,17 @@
         createdAt: Date.now(),
         attempts: 0,
         lastError: null,
+        nextAttemptAt: 0,
         payload
       });
     },
     list() { return allRecords(); },
-    pending() { return allRecords().then(items => items.filter(item => item.status === 'pending')); },
+    pending() {
+      const now = Date.now();
+      return allRecords().then(items => items
+        .filter(item => item.status === 'pending' && Number(item.nextAttemptAt || 0) <= now)
+        .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0)));
+    },
     count() { return allRecords().then(items => items.length); },
     async update(clientOperationId, patch) {
       const item = (await allRecords()).find(row => row.clientOperationId === clientOperationId);
@@ -81,6 +88,14 @@
     async canRetry(clientOperationId) {
       const item = (await allRecords()).find(row => row.clientOperationId === clientOperationId);
       return item && item.attempts < MAX_ATTEMPTS;
+    },
+    async recoverStaleSyncing() {
+      const cutoff = Date.now() - STALE_SYNCING_MS;
+      const stale = (await allRecords()).filter(item => item.status === 'syncing' && Number(item.updatedAt || item.createdAt || 0) <= cutoff);
+      for (const item of stale) {
+        await put(Object.assign({}, item, { status: 'pending', lastError: 'sync-interrupted', nextAttemptAt: 0, updatedAt: Date.now() }));
+      }
+      return stale.length;
     },
     async requestBackgroundSync() {
       try {
