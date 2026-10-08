@@ -38,6 +38,11 @@ assert.match(html, /schemaVersion: 2/);
 assert.match(html, /const requiredKeys = \['products','sales','moves'\]/);
 assert.match(html, /function backupUser\(user\)/);
 assert.doesNotMatch(html, /users: state\.users,\s*suppliers/);
+assert.match(html, /function applyTheme\(mode = getThemeMode\(\)\)/);
+assert.match(html, /matgar-theme-v1/);
+assert.match(html, /data-theme-choice/);
+assert.match(html, /html\[data-theme="dark"\]/);
+assert.match(html, /button:active\{transform:scale\(\.975\)\}/);
 assert.match(sw, /matgar-elashry-shell-v15/);
 assert.match(sw, /\.\/src\/performance-metrics\.js/);
 

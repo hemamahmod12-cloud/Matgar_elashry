@@ -650,6 +650,34 @@
     nav.tabbar button{min-height:58px}
   }
   @media (prefers-reduced-motion:reduce){.view,.btn,.chip,.prod-item,.product-tile,.admin-product-card,.modal{animation:none!important;transition:none!important}.btn::after{display:none}}
+  /* ===== Theme controls + micro interactions — تخصيص هادئ وسريع ===== */
+  html[data-theme="dark"]{--bg:#0e1b26;--surface:#142737;--ink:#edf5f3;--ink-soft:#b7c8cb;--ink-faint:#8ea5a9;--primary:#43b7a8;--primary-dark:#e6f3f0;--primary-soft:#1b3c43;--gold:#e3bf73;--gold-soft:#3a3021;--line:#29424e;--line-soft:#203844;--lux-cream:#142737;--lux-border:#29424e;--lux-shadow:0 14px 34px rgba(0,0,0,.18)}
+  html[data-theme="dark"] body{background:radial-gradient(circle at 8% -4%,rgba(227,191,115,.08),transparent 26%),linear-gradient(135deg,#0e1b26 0%,#122736 55%,#102b32 100%);color:var(--ink)}
+  html[data-theme="dark"] body::before{background:linear-gradient(120deg,rgba(255,255,255,.025),transparent 45%)}
+  html[data-theme="dark"] .card,html[data-theme="dark"] .stat-box{background:rgba(20,39,55,.92);border-color:#29424e;box-shadow:var(--lux-shadow)}
+  html[data-theme="dark"] .btn-outline{background:#172f40;border-color:#427e78;color:#bce5dd}
+  html[data-theme="dark"] .btn-ghost{background:#1a3040;border-color:#304957;color:#c4d6d8}
+  html[data-theme="dark"] input,html[data-theme="dark"] select,html[data-theme="dark"] textarea,html[data-theme="dark"] .search-wrap input{background:#122635;color:#edf5f3;border-color:#34515d}
+  html[data-theme="dark"] input::placeholder,html[data-theme="dark"] textarea::placeholder{color:#91a8ad}
+  html[data-theme="dark"] .product-tile,html[data-theme="dark"] .admin-product-card,html[data-theme="dark"] .prod-item{background:linear-gradient(145deg,#172e3f,#122736);border-color:#2d4a56;color:#edf5f3}
+  html[data-theme="dark"] .product-tile-name,html[data-theme="dark"] .admin-product-heading h3,html[data-theme="dark"] .admin-product-qty b,html[data-theme="dark"] .prod-item .name{color:#eaf5f2}
+  html[data-theme="dark"] .product-category,html[data-theme="dark"] .product-avatar{background:#1e4146;color:#bce5dd}
+  html[data-theme="dark"] .offline-status-bar{background:rgba(20,39,55,.88);border-color:#29424e;color:#d7e8e5}
+  html[data-theme="dark"] .pending-invoices{color:#bce5dd}
+  html[data-theme="dark"] .modal{background:rgba(20,39,55,.98);border-color:#385563}
+  html[data-theme="dark"] .modal-close{background:#203b4a;color:#c4d6d8}
+  html[data-theme="dark"] .checkout-bar{background:rgba(20,39,55,.96);border-color:#29424e}
+  html[data-theme="dark"] .login-screen{background:radial-gradient(circle at 80% 10%,rgba(227,191,115,.08),transparent 23%),linear-gradient(145deg,#0e1b26,#142c3b)}
+  html[data-theme="dark"] .login-card{background:rgba(20,39,55,.96);border-color:#355363}
+  html[data-theme="dark"] .login-title,html[data-theme="dark"] .modal-title,html[data-theme="dark"] .h2{color:#e6f3f0}
+  html[data-theme="dark"] .muted{color:#a9bdc0}
+  html[data-theme="dark"] .view > .card:first-child::before{opacity:.9}
+  button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid rgba(67,183,168,.28);outline-offset:2px}
+  button:active{transform:scale(.975)}
+  .theme-choice{display:flex;gap:8px;margin-top:10px}
+  .theme-choice button{flex:1;min-height:42px}
+  .theme-choice button.is-selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(17,122,115,.13);color:var(--primary-dark)}
+  @media (prefers-color-scheme:dark){html[data-theme="system"]{color-scheme:dark}}
 </style>
   <link rel="stylesheet" href="./desktop-layout-fix.css">
 </head>
@@ -3519,6 +3547,19 @@ function storageModeLabel(){
   if(storageMode === 'browser') return { text:'📱 حفظ محلي على هذا الجهاز فقط', cls:'pill-warn' };
   return { text:'⚠️ بدون حفظ دائم (بيانات هذه الجلسة فقط)', cls:'pill-bad' };
 }
+function getThemeMode(){
+  try{ return ['light','dark','system'].includes(localStorage.getItem('matgar-theme-v1')) ? localStorage.getItem('matgar-theme-v1') : 'light'; }catch(_e){ return 'light'; }
+}
+function applyTheme(mode = getThemeMode()){
+  const chosen = ['light','dark','system'].includes(mode) ? mode : 'light';
+  const resolved = chosen === 'system' ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : chosen;
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.themeMode = chosen;
+  try{ localStorage.setItem('matgar-theme-v1', chosen); }catch(_e){}
+  return chosen;
+}
+applyTheme();
+window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if(getThemeMode() === 'system') applyTheme('system'); });
 function backupUser(user){
   return { id:user.id, name:user.name, username:user.username, role:user.role, authEmail:user.authEmail || '' };
 }
@@ -3589,6 +3630,12 @@ function openSettings(){
       <button class="btn btn-outline btn-block" id="offlineSalesBtn">فتح مركز المزامنة</button>
     </div>
     <button class="btn btn-ghost btn-block" id="systemHealthBtn" style="margin-bottom:14px;">لوحة صحة النظام</button>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="row between"><b>مظهر المنصة</b><span class="muted">يُحفظ تلقائيًا</span></div>
+      <div class="theme-choice" role="group" aria-label="اختيار مظهر المنصة">
+        ${[['light','☀️ فاتح'],['dark','🌙 داكن'],['system','⚙️ تلقائي']].map(([value,label]) => `<button type="button" class="btn btn-ghost ${getThemeMode()===value?'is-selected':''}" data-theme-choice="${value}">${label}</button>`).join('')}
+      </div>
+    </div>
     <div style="clear:both;"></div>
     ${isAdmin ? `
     <div class="field"><label>اسم المتجر</label><input id="s_name" value="${esc(state.settings.storeName)}"></div>
@@ -3638,6 +3685,11 @@ function openSettings(){
   document.getElementById('syncOfflineDirectBtn')?.addEventListener('click', retryOfflineQueue);
   document.getElementById('offlineSalesBtn')?.addEventListener('click', openOfflineSalesViewer);
   document.getElementById('systemHealthBtn')?.addEventListener('click', openSystemHealth);
+  document.querySelectorAll('[data-theme-choice]').forEach(button => button.addEventListener('click', () => {
+    const mode = applyTheme(button.dataset.themeChoice);
+    document.querySelectorAll('[data-theme-choice]').forEach(item => item.classList.toggle('is-selected', item.dataset.themeChoice === mode));
+    toast(mode === 'dark' ? 'تم تفعيل المظهر الداكن' : mode === 'system' ? 'تم تفعيل المظهر التلقائي' : 'تم تفعيل المظهر الفاتح');
+  }));
   if(window.MatgarOfflineQueue){
     window.MatgarOfflineQueue.count().then(count => {
       const label = document.getElementById('offlineSettingsCount');
