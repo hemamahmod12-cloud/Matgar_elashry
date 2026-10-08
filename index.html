@@ -592,6 +592,64 @@
   #view-cashier>.search-wrap .barcode-camera-btn{min-height:50px;border-radius:14px;}
   @media (min-width:760px) and (hover:hover){.pos-product-grid{grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:16px}.admin-product-grid{gap:16px}.product-tile{min-height:184px;padding:17px}.admin-product-card{padding:18px}}
   @media (max-width:420px){.pos-product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.product-tile{min-height:158px;padding:12px;border-radius:15px}.product-tile-name{font-size:13.5px}.product-price{font-size:14px}.product-avatar{width:36px;height:36px;flex-basis:36px;border-radius:12px;font-size:16px}.product-category{font-size:9px;padding:3px 6px}.admin-product-grid{grid-template-columns:1fr}}
+  /* ===== Quiet Luxury UI v3 — توحيد بصري راقٍ بدون تغيير منطق النظام ===== */
+  :root{--lux-navy:#102b43;--lux-teal:#0f766e;--lux-mint:#e8f3f0;--lux-sand:#c7a15a;--lux-cream:#fbfaf7;--lux-border:#e5e9e8;--lux-shadow:0 12px 30px rgba(16,43,67,.075)}
+  body{letter-spacing:.01em}
+  header.topbar{isolation:isolate;overflow:hidden}
+  header.topbar::before{opacity:.9;pointer-events:none}
+  header.topbar .page-context{position:relative;z-index:1}
+  header.topbar .page-context strong{font-size:18px;letter-spacing:.02em}
+  header.topbar .page-context span{opacity:.78}
+  .offline-status-bar{border-radius:16px;background:rgba(255,255,255,.78);backdrop-filter:blur(14px);box-shadow:0 8px 24px rgba(16,43,67,.055)}
+  main{scrollbar-gutter:stable;}
+  .view{min-width:0}
+  .view > .card:first-child,.view > .search-wrap:first-child{position:relative}
+  .view > .card:first-child::before{content:'';position:absolute;inset:0 auto 0 0;width:3px;border-radius:3px;background:linear-gradient(180deg,var(--lux-sand),var(--lux-teal));opacity:.7}
+  .h2{letter-spacing:.02em}
+  .btn{position:relative;overflow:hidden;border-width:1px;box-shadow:0 4px 12px rgba(16,43,67,.045)}
+  .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.18),transparent 70%);transform:translateX(-120%);transition:transform .45s ease;pointer-events:none}
+  .btn:hover::after{transform:translateX(120%)}
+  .btn-primary{background:linear-gradient(135deg,#117a73 0%,#0b5264 100%);border-color:#0f766e;box-shadow:0 9px 20px rgba(15,118,110,.18)}
+  .btn-outline{background:linear-gradient(180deg,#fff,#f7fbfa);border-color:#a7c9c3;color:#125e5a}
+  .btn-ghost{background:rgba(246,249,249,.92);border-color:#dfe8e7;color:#345463}
+  .btn-danger{background:linear-gradient(135deg,#b95750,#963f43);border-color:#a84a46;color:#fff}
+  .chip{transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
+  .chip:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(16,43,67,.09)}
+  .card,.stat-box{box-shadow:var(--lux-shadow);border-color:var(--lux-border)}
+  .card:hover{border-color:#d2e2df}
+  .search-wrap{filter:drop-shadow(0 5px 12px rgba(16,43,67,.035))}
+  .search-wrap input{box-shadow:0 5px 16px rgba(16,43,67,.045)}
+  .product-tile,.admin-product-card{box-shadow:0 8px 22px rgba(16,43,67,.06)}
+  .product-tile:hover,.admin-product-card:hover{box-shadow:0 16px 30px rgba(16,43,67,.12)}
+  .checkout-bar{border-radius:20px 20px 0 0;padding-top:13px}
+  .checkout-bar .amt{font-size:23px;letter-spacing:.02em}
+  .modal-back{align-items:center;padding:14px}
+  .modal{border-radius:26px;max-width:560px;max-height:min(88vh,760px);padding:22px 20px 24px}
+  .modal::before{top:10px;background:#c9d9d6}
+  .modal-close{transition:background .16s ease,transform .16s ease}
+  .modal-close:hover{background:#e8f3f0;transform:rotate(8deg)}
+  nav.tabbar{gap:10px}
+  nav.tabbar button{border:1px solid transparent;transition:background .18s ease,color .18s ease,transform .18s ease}
+  nav.tabbar button:hover{transform:translateX(-2px);background:rgba(255,255,255,.08)}
+  nav.tabbar button.active{border-color:rgba(232,199,118,.18)}
+  .pill{font-weight:800;letter-spacing:.01em}
+  @media (min-width:760px) and (hover:hover){
+    main{padding-top:28px;padding-right:34px;padding-left:34px}
+    .view > .card:first-child::before{inset:18px auto 18px 0}
+    nav.tabbar{padding-top:104px;background:linear-gradient(180deg,#0c253d 0%,#102f48 48%,#0c5360 100%);box-shadow:8px 0 28px rgba(8,31,48,.12)}
+    nav.tabbar::after{content:'متجر العشري';position:absolute;top:65px;right:22px;color:rgba(255,255,255,.72);font-weight:900;font-size:13px;letter-spacing:.04em}
+    nav.tabbar button{min-height:48px}
+  }
+  @media (max-width:759px){
+    header.topbar{box-shadow:0 10px 26px rgba(8,31,48,.16)}
+    header.topbar .page-context strong{font-size:16px}
+    .view > .card:first-child::before{display:none}
+    .modal-back{padding:0;align-items:flex-end}
+    .modal{border-radius:26px 26px 0 0;max-width:100%;padding:20px 15px 22px}
+    .btn{min-height:46px}
+    nav.tabbar button{min-height:58px}
+  }
+  @media (prefers-reduced-motion:reduce){.view,.btn,.chip,.prod-item,.product-tile,.admin-product-card,.modal{animation:none!important;transition:none!important}.btn::after{display:none}}
 </style>
   <link rel="stylesheet" href="./desktop-layout-fix.css">
 </head>
