@@ -1325,7 +1325,7 @@ async function maybeAutoBackup(){
     const marker = await db.collection('storeData').doc('lastAutoBackupAt').get();
     const lastAt = marker.exists ? marker.data().value : 0;
     if(Date.now() - (lastAt||0) < 24*60*60*1000) return; // اتاخدت نسخة في آخر 24 ساعة
-    const backup = { exportedAt: Date.now(), products: state.products, sales: state.sales, moves: state.moves, categories: state.categories, settings: state.settings, users: state.users.map(u => ({ id:u.id, name:u.name, username:u.username, role:u.role })), suppliers: state.suppliers, expenses: state.expenses, shifts: state.shifts };
+    const backup = buildBackupPayload();
     await db.collection('backups').add(backup);
     await db.collection('storeData').doc('lastAutoBackupAt').set({ value: Date.now() });
     await pruneOldBackups(30); // نحتفظ بآخر 30 نسخة بس، ومسح الأقدم عشان مساحة التخزين متتراكمش بلا حد
@@ -2342,6 +2342,7 @@ async function syncOfflineSales(manual = false){
     scheduleRender();
     dispatchOfflineQueueChanged();
   }
+  if(synced){ markCloudSyncSuccess(); }
   if(manual) toast(synced ? `تمت مزامنة ${synced} فاتورة بنجاح` : 'لم تتم مزامنة أي فاتورة؛ راجع مركز المزامنة');
 }
 
@@ -3460,6 +3461,51 @@ function storageModeLabel(){
   if(storageMode === 'browser') return { text:'📱 حفظ محلي على هذا الجهاز فقط', cls:'pill-warn' };
   return { text:'⚠️ بدون حفظ دائم (بيانات هذه الجلسة فقط)', cls:'pill-bad' };
 }
+function backupUser(user){
+  return { id:user.id, name:user.name, username:user.username, role:user.role, authEmail:user.authEmail || '' };
+}
+function buildBackupPayload(){
+  return {
+    schemaVersion: 2,
+    exportedAt: Date.now(),
+    exportedBy: currentUser ? { id:currentUser.id, username:currentUser.username } : null,
+    products: state.products, sales: state.sales, moves: state.moves,
+    categories: state.categories, settings: state.settings,
+    users: state.users.map(backupUser), suppliers: state.suppliers,
+    parked: state.parked, expenses: state.expenses, shifts: state.shifts
+  };
+}
+function lastCloudSyncAt(){
+  try{ return Number(localStorage.getItem('matgar-last-cloud-sync-v1') || 0); }catch(_e){ return 0; }
+}
+function markCloudSyncSuccess(){
+  try{ localStorage.setItem('matgar-last-cloud-sync-v1', String(Date.now())); }catch(_e){}
+}
+async function getSystemHealthSnapshot(){
+  const queue = window.MatgarOfflineQueue;
+  const items = queue ? await queue.list().catch(() => []) : [];
+  const estimate = navigator.storage?.estimate ? await navigator.storage.estimate().catch(() => ({})) : {};
+  const perf = window.MatgarPerf?.snapshot ? window.MatgarPerf.snapshot() : { durations:{}, counts:{} };
+  return { online:navigator.onLine, cloud:!!db && storageMode === 'firebase', storageMode, pending:items.filter(x => x.status === 'pending' || x.status === 'syncing').length, failed:items.filter(x => x.status === 'failed').length, lastError:items.find(x => x.lastError)?.lastError || '', lastSync:lastCloudSyncAt(), products:state.products.length, sales:state.sales.length, localBytes:estimate.usage || 0, quotaBytes:estimate.quota || 0, perf };
+}
+async function openSystemHealth(){
+  openModal('<div class="modal-title">لوحة صحة النظام</div><div id="healthPanel" class="stack"><div class="empty">جاري الفحص...</div></div>');
+  const h = await getSystemHealthSnapshot();
+  const panel = document.getElementById('healthPanel');
+  if(!panel) return;
+  const cloudText = h.cloud ? 'متصل بالسحابة' : (h.online ? 'السحابة غير متاحة' : 'بدون إنترنت');
+  const cloudCls = h.cloud ? 'pill-ok' : (h.online ? 'pill-bad' : 'pill-warn');
+  const last = h.lastSync ? new Date(h.lastSync).toLocaleString('ar-EG') : 'لم تتم مزامنة ناجحة بعد';
+  const used = h.localBytes ? `${(h.localBytes/1024/1024).toFixed(2)} ميجابايت` : 'غير متاح';
+  const perfRows = Object.entries(h.perf.durations || {}).slice(-4).map(([name,v]) => `<div class="rline"><span>${esc(name)}</span><b>${Number(v.last || 0).toFixed(1)} ms</b></div>`).join('');
+  panel.innerHTML = `
+    <div class="card"><div class="row between"><b>الاتصال السحابي</b><span class="pill ${cloudCls}">${cloudText}</span></div><div class="muted" style="margin-top:7px;">آخر مزامنة ناجحة: ${esc(last)}</div></div>
+    <div class="card"><div class="rline"><span>فواتير بانتظار المزامنة</span><b>${h.pending}</b></div><div class="rline"><span>فواتير فشلت</span><b>${h.failed}</b></div>${h.lastError ? `<div class="muted" style="color:var(--danger);">آخر سبب: ${esc(h.lastError)}</div>` : '<div class="muted">لا توجد أخطاء مسجلة في الطابور</div>'}</div>
+    <div class="card"><div class="rline"><span>المنتجات</span><b>${h.products}</b></div><div class="rline"><span>الفواتير</span><b>${h.sales}</b></div><div class="rline"><span>التخزين المحلي المستخدم</span><b>${used}</b></div></div>
+    ${perfRows ? `<div class="card"><b>قياسات الأداء الأخيرة</b>${perfRows}</div>` : ''}
+    <button class="btn btn-primary btn-block" id="healthRefreshBtn">إعادة الفحص</button>`;
+  document.getElementById('healthRefreshBtn')?.addEventListener('click', openSystemHealth);
+}
 function openSettings(){
   const isAdmin = currentUser && currentUser.role === 'admin';
   const initial = esc((currentUser.name||'?').trim().charAt(0));
@@ -3484,6 +3530,7 @@ function openSettings(){
       <button class="btn btn-primary btn-block" id="syncOfflineDirectBtn" style="margin-bottom:8px;">مزامنة الآن</button>
       <button class="btn btn-outline btn-block" id="offlineSalesBtn">فتح مركز المزامنة</button>
     </div>
+    <button class="btn btn-ghost btn-block" id="systemHealthBtn" style="margin-bottom:14px;">لوحة صحة النظام</button>
     <div style="clear:both;"></div>
     ${isAdmin ? `
     <div class="field"><label>اسم المتجر</label><input id="s_name" value="${esc(state.settings.storeName)}"></div>
@@ -3532,6 +3579,7 @@ function openSettings(){
   document.getElementById('logoutBtn').addEventListener('click', () => { closeModal(); logout(); });
   document.getElementById('syncOfflineDirectBtn')?.addEventListener('click', retryOfflineQueue);
   document.getElementById('offlineSalesBtn')?.addEventListener('click', openOfflineSalesViewer);
+  document.getElementById('systemHealthBtn')?.addEventListener('click', openSystemHealth);
   if(window.MatgarOfflineQueue){
     window.MatgarOfflineQueue.count().then(count => {
       const label = document.getElementById('offlineSettingsCount');
@@ -3866,12 +3914,7 @@ async function openAutoBackupsViewer(){
 }
 
 function exportBackup(){
-  const backup = {
-    exportedAt: Date.now(),
-    products: state.products, sales: state.sales, moves: state.moves,
-    categories: state.categories, settings: state.settings, users: state.users,
-    suppliers: state.suppliers, parked: state.parked, expenses: state.expenses, shifts: state.shifts
-  };
+  const backup = buildBackupPayload();
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -3889,18 +3932,20 @@ function importBackup(e){
   reader.onload = async () => {
     try{
       const data = JSON.parse(reader.result);
+      const requiredKeys = ['products','sales','moves'];
+      if(!data || typeof data !== 'object' || !requiredKeys.every(key => Array.isArray(data[key]))) throw new Error('invalid-backup-schema');
       if(!confirm('سيتم استبدال كل البيانات الحالية بالنسخة المستوردة. متأكد؟')) return;
       state.products = data.products || [];
       state.sales = data.sales || [];
       state.moves = data.moves || [];
-      state.categories = data.categories && data.categories.length ? data.categories : ['عام'];
+      state.categories = Array.isArray(data.categories) && data.categories.length ? data.categories : ['عام'];
       state.settings = Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, data.settings || {});
-      state.suppliers = data.suppliers || [];
-      state.parked = data.parked || [];
-      state.expenses = data.expenses || [];
-      state.shifts = data.shifts || [];
-      // keep current logged-in users as-is unless the backup has its own
-      if(data.users && data.users.length) state.users = data.users;
+      state.suppliers = Array.isArray(data.suppliers) ? data.suppliers : [];
+      state.parked = Array.isArray(data.parked) ? data.parked : [];
+      state.expenses = Array.isArray(data.expenses) ? data.expenses : [];
+      state.shifts = Array.isArray(data.shifts) ? data.shifts : [];
+      // المستخدمون في النسخة لا يحملون كلمات مرور؛ تُستعاد بياناتهم الوصفية فقط.
+      if(Array.isArray(data.users) && data.users.length) state.users = data.users.map(backupUser).filter(u => u.id && u.username && u.role);
       await Promise.all(['products','sales','moves','categories','settings','suppliers','parked','expenses','shifts','users'].map(save));
       closeModal();
       document.querySelector('#storeNameBtn').textContent = '🏪 ' + state.settings.storeName;

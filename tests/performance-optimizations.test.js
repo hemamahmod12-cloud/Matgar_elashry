@@ -32,6 +32,12 @@ assert.match(html, /status:'syncing', attempts:attempt/);
 assert.match(html, /const retryDelay = Math\.min\(60000/);
 assert.match(html, /status: permanent \|\| exhausted \? 'failed' : 'pending'/);
 assert.match(html, /nextAttemptAt:0/);
+assert.match(html, /function openSystemHealth\(\)/);
+assert.match(html, /function buildBackupPayload\(\)/);
+assert.match(html, /schemaVersion: 2/);
+assert.match(html, /const requiredKeys = \['products','sales','moves'\]/);
+assert.match(html, /function backupUser\(user\)/);
+assert.doesNotMatch(html, /users: state\.users,\s*suppliers/);
 assert.match(sw, /matgar-elashry-shell-v15/);
 assert.match(sw, /\.\/src\/performance-metrics\.js/);
 
