@@ -38,6 +38,15 @@
     }));
   }
 
+  function getRecord(clientOperationId) {
+    return openDb().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(OUTBOX, 'readonly');
+      const request = tx.objectStore(OUTBOX).get(clientOperationId);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error('indexeddb-get-failed'));
+    }));
+  }
+
   function put(record) {
     return openDb().then(db => new Promise((resolve, reject) => {
       const tx = db.transaction(OUTBOX, 'readwrite');
@@ -47,10 +56,22 @@
     }));
   }
 
+  function putMany(records) {
+    if (!records.length) return Promise.resolve(0);
+    return openDb().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(OUTBOX, 'readwrite');
+      const store = tx.objectStore(OUTBOX);
+      records.forEach(record => store.put(record));
+      tx.oncomplete = () => resolve(records.length);
+      tx.onerror = () => reject(tx.error || new Error('indexeddb-bulk-write-failed'));
+    }));
+  }
+
   const api = {
     async enqueue(payload) {
       if (!payload || !payload.clientOperationId) throw new Error('invalid-payload');
-      const existing = (await allRecords()).find(item => item.clientOperationId === payload.clientOperationId);
+      // get() يستخدم مفتاح objectStore مباشرة؛ لا نقرأ الطابور كله لكل فاتورة.
+      const existing = await getRecord(payload.clientOperationId);
       if (existing) return existing;
       return put({
         clientOperationId: payload.clientOperationId,
@@ -72,7 +93,7 @@
     },
     count() { return allRecords().then(items => items.length); },
     async update(clientOperationId, patch) {
-      const item = (await allRecords()).find(row => row.clientOperationId === clientOperationId);
+      const item = await getRecord(clientOperationId);
       if (!item) return null;
       return put(Object.assign({}, item, patch, { updatedAt: Date.now() }));
     },
@@ -86,15 +107,15 @@
       });
     },
     async canRetry(clientOperationId) {
-      const item = (await allRecords()).find(row => row.clientOperationId === clientOperationId);
+      const item = await getRecord(clientOperationId);
       return item && item.attempts < MAX_ATTEMPTS;
     },
     async recoverStaleSyncing() {
       const cutoff = Date.now() - STALE_SYNCING_MS;
       const stale = (await allRecords()).filter(item => item.status === 'syncing' && Number(item.updatedAt || item.createdAt || 0) <= cutoff);
-      for (const item of stale) {
-        await put(Object.assign({}, item, { status: 'pending', lastError: 'sync-interrupted', nextAttemptAt: 0, updatedAt: Date.now() }));
-      }
+      await putMany(stale.map(item => Object.assign({}, item, {
+        status: 'pending', lastError: 'sync-interrupted', nextAttemptAt: 0, updatedAt: Date.now()
+      })));
       return stale.length;
     },
     async requestBackgroundSync() {

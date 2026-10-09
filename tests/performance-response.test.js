@@ -4,12 +4,6 @@ const vm = require('node:vm');
 const { performance } = require('node:perf_hooks');
 
 const source = file => fs.readFileSync(file, 'utf8');
-const elapsed = work => {
-  const start = performance.now();
-  const result = work();
-  return { result, ms: performance.now() - start };
-};
-
 function percentile(values, ratio) {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * ratio))];
@@ -22,7 +16,13 @@ async function measureAsync(work, samples) {
     await work(i);
     values.push(performance.now() - start);
   }
-  return { p95: percentile(values, 0.95), max: Math.max(...values), values };
+  return {
+    p50: percentile(values, 0.50),
+    p95: percentile(values, 0.95),
+    p99: percentile(values, 0.99),
+    max: Math.max(...values),
+    values
+  };
 }
 
 async function testCashierResponse() {
@@ -92,6 +92,11 @@ function createFakeIndexedDB() {
   const transaction = () => {
     const tx = { oncomplete: null, onerror: null };
     const store = {
+      get(key) {
+        const result = request(records.get(key));
+        setTimeout(() => result.onsuccess?.(), 0);
+        return result;
+      },
       getAll() {
         const result = request([...records.values()]);
         setTimeout(() => { result.onsuccess?.(); tx.oncomplete?.(); }, 0);
@@ -128,7 +133,7 @@ async function testOfflineQueueResponse() {
   vm.createContext(context);
   vm.runInContext(source('src/offline-queue.js'), context);
   const queue = context.window.MatgarOfflineQueue;
-  const samples = 100;
+  const samples = 1000;
   const result = await measureAsync(index => queue.enqueue({
     clientOperationId: `perf-sale-${index}`,
     sale: { total: index + 10, items: [{ productId: 'p1', qty: 1 }] }
@@ -139,9 +144,9 @@ async function testOfflineQueueResponse() {
 
   assert.equal(pending.length, samples);
   assert.equal(new Set(pending.map(item => item.clientOperationId)).size, samples);
-  assert.ok(percentile(result.values, 0.95) < 25, `offline enqueue p95 too slow: ${percentile(result.values, 0.95).toFixed(2)}ms`);
+  assert.ok(result.p95 < 25, `offline enqueue p95 too slow: ${result.p95.toFixed(2)}ms`);
   assert.ok(pendingMs < 25, `offline pending read too slow: ${pendingMs.toFixed(2)}ms`);
-  return { enqueueP95: percentile(result.values, 0.95), pendingMs };
+  return { enqueueP50: result.p50, enqueueP95: result.p95, enqueueP99: result.p99, pendingMs };
 }
 
 (async () => {

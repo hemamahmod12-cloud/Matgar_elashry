@@ -25,6 +25,11 @@
     increment(`${name}.completed`);
     return duration;
   }
+  function percentile(values, ratio) {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    return sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * ratio) - 1)];
+  }
   function snapshot() {
     const result = { counts: Object.fromEntries(counts), durations: {} };
     durations.forEach((values, name) => {
@@ -32,6 +37,10 @@
       result.durations[name] = {
         lastMs: values[values.length - 1] || 0,
         averageMs: values.length ? total / values.length : 0,
+        p50Ms: percentile(values, 0.50),
+        p95Ms: percentile(values, 0.95),
+        p99Ms: percentile(values, 0.99),
+        maxMs: values.length ? Math.max(...values) : 0,
         samples: values.length
       };
     });

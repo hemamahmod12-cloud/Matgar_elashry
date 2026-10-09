@@ -61,4 +61,9 @@ assert.equal(context.window.MatgarPerf.snapshot().counts['render.requested'], 2)
 assert.equal(Object.keys(context.window.MatgarPerf.snapshot().durations).length, 0);
 context.window.MatgarPerf.end('render');
 assert.equal(context.window.MatgarPerf.snapshot().durations.render.samples, 1);
+assert.equal(context.window.MatgarPerf.snapshot().durations.render.p50Ms, 0);
+assert.equal(context.window.MatgarPerf.snapshot().durations.render.p95Ms, 0);
+assert.equal(context.window.MatgarPerf.snapshot().durations.render.p99Ms, 0);
+assert.match(queue, /function getRecord\(clientOperationId\)/);
+assert.match(queue, /objectStore\(OUTBOX\).*\.get\(clientOperationId\)/s);
 console.log('performance optimization tests: OK');

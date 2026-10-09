@@ -1650,7 +1650,12 @@ async function importProductsCsv(e){
 
 /* ---------------- cart state (in-memory only) ---------------- */
 let cart = []; // {productId, name, price, buyPrice, qty, discount} — discount = خصم مبلغ ثابت على السطر كله
-
+let cartRenderFrame = null;
+function scheduleCartRender(){
+  if(cartRenderFrame !== null) return;
+  const run = () => { cartRenderFrame = null; renderCart(); };
+  cartRenderFrame = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(run) : setTimeout(run, 16);
+}
 function addToCart(p){
   if(p.qty <= 0){ toast('هذا المنتج غير متوفر بالمخزون'); return; }
   const line = cart.find(c => c.productId === p.id);
@@ -1658,17 +1663,17 @@ function addToCart(p){
   if(already + 1 > p.qty){ toast('الكمية المتاحة في المخزون: ' + p.qty); return; }
   if(line) line.qty += 1;
   else cart.push({ productId:p.id, name:p.name, price:p.sellPrice, buyPrice:p.buyPrice, qty:1, discount:0 });
-  renderCart();
+  scheduleCartRender();
 }
 function changeCartQty(productId, delta){
   const line = cart.find(c => c.productId === productId);
   if(!line) return;
   const p = findProduct(productId);
   const next = line.qty + delta;
-  if(next <= 0){ cart = cart.filter(c => c.productId !== productId); renderCart(); return; }
+  if(next <= 0){ cart = cart.filter(c => c.productId !== productId); scheduleCartRender(); return; }
   if(p && next > p.qty){ toast('الكمية المتاحة في المخزون: ' + p.qty); return; }
   line.qty = next;
-  renderCart();
+  scheduleCartRender();
 }
 function setLineDiscount(productId, value){
   const line = cart.find(c => c.productId === productId);
@@ -1678,7 +1683,7 @@ function setLineDiscount(productId, value){
 }
 function removeCartLine(productId){
   cart = cart.filter(c => c.productId !== productId);
-  renderCart();
+  scheduleCartRender();
 }
 function lineTotal(c){ return Math.max(0, c.price*c.qty - (c.discount||0)); }
 function cartTotal(){ return cart.reduce((s,c) => s + lineTotal(c), 0); }
@@ -1818,7 +1823,7 @@ document.getElementById('view-cashier').addEventListener('click', (e) => {
 });
 document.getElementById('view-cashier').addEventListener('change', (e) => {
   const dEl = e.target.closest('[data-line-discount]');
-  if(dEl){ setLineDiscount(dEl.getAttribute('data-line-discount'), dEl.value); renderCart(); }
+  if(dEl){ setLineDiscount(dEl.getAttribute('data-line-discount'), dEl.value); scheduleCartRender(); }
 });
 
 /* ---------------- hold / park orders ---------------- */
