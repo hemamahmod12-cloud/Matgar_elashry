@@ -696,6 +696,7 @@
   </div>
   <div class="login-card-wrap">
     <div class="login-card">
+      <form id="loginForm" novalidate>
       <div id="loginTitle" class="login-title">تسجيل الدخول</div>
       <div id="loginSubtitle" class="muted" style="text-align:center; margin-bottom:16px;">ادخل بيانات حسابك للمتابعة</div>
       <div class="field" id="loginNameField" style="display:none;"><label>اسمك</label><input id="l_fullname" placeholder="مثال: أحمد"></div>
@@ -703,20 +704,21 @@
         <label>اسم المستخدم</label>
         <div class="input-icon-wrap">
           <span class="input-icon">👤</span>
-          <input id="l_username" placeholder="username" autocomplete="off" style="padding-right:38px;">
+          <input id="l_username" placeholder="username" autocomplete="username" style="padding-right:38px;">
         </div>
       </div>
       <div class="field">
         <label>كلمة المرور</label>
         <div class="input-icon-wrap">
           <span class="input-icon">🔒</span>
-          <input id="l_password" type="password" placeholder="••••••" style="padding-right:38px; padding-left:38px;">
+          <input id="l_password" type="password" placeholder="••••••" autocomplete="current-password" style="padding-right:38px; padding-left:38px;">
           <button type="button" class="input-toggle" id="togglePwBtn" aria-label="إظهار كلمة المرور">👁</button>
         </div>
       </div>
       <div id="loginError" class="login-error" style="display:none;"></div>
-      <button class="btn btn-primary btn-block" id="loginSubmitBtn">دخول</button>
+      <button type="submit" class="btn btn-primary btn-block" id="loginSubmitBtn">دخول</button>
       <div id="offlineLoginHint" class="muted" style="text-align:center;font-size:11px;margin-top:12px;line-height:1.6;"></div>
+      </form>
     </div>
   </div>
 </div>
@@ -3352,7 +3354,8 @@ function lockoutRemainingMs(username){
   return Math.max(0, info.lockUntil - Date.now());
 }
 
-document.getElementById('loginSubmitBtn').addEventListener('click', async () => {
+document.getElementById('loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
   const hasUsers = state.users.length > 0;
   const setupMode = new URLSearchParams(location.search).get('setup') === '1';
     const username = normalizeUsername(document.getElementById('l_username').value);

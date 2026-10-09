@@ -43,6 +43,11 @@ assert.match(html, /matgar-theme-v1/);
 assert.match(html, /data-theme-choice/);
 assert.match(html, /html\[data-theme="dark"\]/);
 assert.match(html, /button:active\{transform:scale\(\.975\)\}/);
+assert.match(html, /<form id="loginForm" novalidate>/);
+assert.match(html, /loginForm'\)\.addEventListener\('submit'/);
+assert.match(html, /id="loginSubmitBtn"/);
+assert.match(html, /id="l_username"[^>]+autocomplete="username"/);
+assert.match(html, /id="l_password"[^>]+autocomplete="current-password"/);
 assert.match(sw, /matgar-elashry-shell-v15/);
 assert.match(sw, /\.\/src\/performance-metrics\.js/);
 
