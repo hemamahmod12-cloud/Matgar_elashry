@@ -1,0 +1,61 @@
+name: Weekly Offline Sync Stress Monitor
+
+on:
+  schedule:
+    # كل أسبوع يوم الأحد الساعة 02:00 UTC.
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/offline-queue.js'
+      - 'tests/offline-sync-stress.test.js'
+      - '.github/workflows/weekly-offline-sync-stress.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-offline-sync-stress
+  cancel-in-progress: false
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run 5000-invoice offline/online stress test
+        env:
+          PERF_REPORT_PATH: stress-artifacts/offline-sync-stress.json
+        run: |
+          mkdir -p stress-artifacts
+          node tests/offline-sync-stress.test.js
+
+      - name: Publish performance summary
+        if: always()
+        run: |
+          if [ -f stress-artifacts/offline-sync-stress.json ]; then
+            {
+              echo '## Weekly Offline Sync Stress Monitor'
+              echo
+              echo '```json'
+              cat stress-artifacts/offline-sync-stress.json
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload stress report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-sync-stress-${{ github.run_id }}
+          path: stress-artifacts/
+          if-no-files-found: warn
+          retention-days: 90

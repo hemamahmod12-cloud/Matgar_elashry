@@ -133,7 +133,7 @@ async function main() {
   assert.ok(memoryDeltaMb < MAX_MEMORY_DELTA_MB,
     `memory delta exceeded limit: ${memoryDeltaMb.toFixed(2)}MB`);
 
-  console.log('offline sync stress test: OK', JSON.stringify({
+  const report = {
     totalSales: TOTAL_SALES,
     offlineEnqueueMs: Number(enqueueMs.toFixed(2)),
     enqueueP50Ms: Number(percentile(enqueueTimes, 0.50).toFixed(4)),
@@ -143,7 +143,11 @@ async function main() {
     syncStepP95Ms: Number(percentile(syncTimes, 0.95).toFixed(4)),
     memoryDeltaMb: Number(memoryDeltaMb.toFixed(2)),
     remaining
-  }));
+  };
+  if (process.env.PERF_REPORT_PATH) {
+    fs.writeFileSync(process.env.PERF_REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+  }
+  console.log('offline sync stress test: OK', JSON.stringify(report));
 }
 
 main().catch(error => {
