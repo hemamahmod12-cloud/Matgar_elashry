@@ -34,6 +34,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Java 21 for Firebase Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install Emulator test dependencies
         run: npm install --no-save --no-package-lock firebase@^11.0.0 @firebase/rules-unit-testing@^4.0.0 firebase-tools@latest
 
