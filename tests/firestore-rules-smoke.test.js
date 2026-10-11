@@ -9,4 +9,6 @@ assert.match(rules, /match \/auditLog\/\{entryId\}/);
 assert.match(rules, /allow update, delete: if false;/);
 assert.match(rules, /match \/\{document=\*\*\}/);
 assert.match(rules, /allow read, write: if false;/);
+assert.match(fs.readFileSync('tests/firestore-rules-emulator.test.cjs', 'utf8'), /initializeTestEnvironment/);
+assert.match(fs.readFileSync('.github/workflows/firestore-rules-emulator.yml', 'utf8'), /emulators:exec/);
 console.log('firestore rules smoke tests: OK');

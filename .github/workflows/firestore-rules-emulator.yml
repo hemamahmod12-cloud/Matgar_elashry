@@ -1,0 +1,43 @@
+name: Firestore Rules Emulator Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - tests/firestore-rules-emulator.test.cjs
+      - .github/workflows/firestore-rules-emulator.yml
+  pull_request:
+    paths:
+      - firestore.rules
+      - tests/firestore-rules-emulator.test.cjs
+      - .github/workflows/firestore-rules-emulator.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firestore-rules-emulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Emulator test dependencies
+        run: npm install --no-save --no-package-lock firebase@^11.0.0 @firebase/rules-unit-testing@^4.0.0 firebase-tools@latest
+
+      - name: Run Firestore Rules Emulator tests
+        env:
+          FIRESTORE_TEST_PROJECT: demo-matgar-staging
+        run: npx firebase emulators:exec --only firestore --project demo-matgar-staging "node tests/firestore-rules-emulator.test.cjs"
