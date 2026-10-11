@@ -1,0 +1,96 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate, smoke, performance and stress tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check functions/src/index.js
+          for file in src/*.js tests/*.js category-filter-patch.js; do
+            node --check "$file"
+          done
+          node - <<'NODE'
+          const fs = require('fs');
+          const os = require('os');
+          const path = require('path');
+          const { spawnSync } = require('child_process');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const blocks = [...html.matchAll(/<script(?:[^>]*)>([\s\S]*?)<\/script>/g)]
+            .map(match => match[1])
+            .filter(Boolean);
+          for (const [index, code] of blocks.entries()) {
+            const file = path.join(os.tmpdir(), `matgar-inline-${process.pid}-${index}.js`);
+            fs.writeFileSync(file, code);
+            const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+            fs.rmSync(file, { force: true });
+            if (result.status !== 0) {
+              process.stderr.write(result.stderr);
+              process.exit(result.status || 1);
+            }
+          }
+          console.log(`inline JavaScript blocks validated: ${blocks.length}`);
+          NODE
+
+      - name: Run smoke and performance tests
+        run: |
+          node tests/phase1-smoke.test.js
+          node tests/store-repository-smoke.test.js
+          node tests/firestore-rules-smoke.test.js
+          node tests/performance-optimizations.test.js
+          node tests/performance-response.test.js
+
+      - name: Run 5000-invoice offline stress test
+        env:
+          PERF_REPORT_PATH: stress-artifacts/offline-sync-stress.json
+        run: |
+          mkdir -p stress-artifacts
+          node tests/offline-sync-stress.test.js
+
+      - name: Publish CI performance report
+        if: always()
+        run: |
+          if [ -f stress-artifacts/offline-sync-stress.json ]; then
+            {
+              echo '## CI Performance Report'
+              echo
+              echo '```json'
+              cat stress-artifacts/offline-sync-stress.json
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload CI stress report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-stress-report-${{ github.run_id }}
+          path: stress-artifacts/
+          if-no-files-found: warn
+          retention-days: 30
