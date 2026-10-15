@@ -1,4 +1,4 @@
-const CACHE_NAME = 'matgar-elashry-shell-v15';
+const CACHE_NAME = 'matgar-elashry-shell-v16';
 const SAME_ORIGIN_SHELL = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const SAME_ORIGIN_SHELL = [
   './icon-192.png',
   './icon-512.png',
   './desktop-layout-fix.css',
+  './dark-theme.css',
   './src/shared-utils.js',
   './src/performance-metrics.js',
   './src/sale-calculator.js',
