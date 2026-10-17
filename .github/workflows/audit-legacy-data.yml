@@ -1,0 +1,64 @@
+name: Audit Legacy StoreData
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'Firebase project ID'
+        required: true
+        type: string
+        default: story-market-35565
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-legacy-storedata
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install read-only audit dependency
+        run: npm install --no-save --no-package-lock firebase-admin@^12.7.0
+
+      - name: Write temporary service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          node -e "const fs=require('fs'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/firebase-service-account.json')); console.log('service account JSON: valid')"
+
+      - name: Validate audit source
+        run: node --check scripts/audit-legacy-data.cjs
+
+      - name: Audit StoreData read-only
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+          FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
+        run: node scripts/audit-legacy-data.cjs
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-data-audit-${{ github.run_id }}
+          path: audit-artifacts/legacy-data-audit.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
