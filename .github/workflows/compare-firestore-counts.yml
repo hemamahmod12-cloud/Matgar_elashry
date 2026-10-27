@@ -13,6 +13,8 @@ on:
         required: true
         type: string
         default: main
+  schedule:
+    - cron: '47 2 * * *'
 
 permissions:
   contents: read
@@ -52,8 +54,8 @@ jobs:
       - name: Compare counts read-only
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-          FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
-          FIREBASE_STORE_ID: ${{ inputs.store_id }}
+          FIREBASE_PROJECT_ID: ${{ inputs.project_id || 'story-market-35565' }}
+          FIREBASE_STORE_ID: ${{ inputs.store_id || 'main' }}
         run: node scripts/compare-store-data.cjs
 
       - name: Upload comparison report

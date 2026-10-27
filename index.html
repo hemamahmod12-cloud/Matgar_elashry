@@ -677,6 +677,12 @@
   .theme-choice{display:flex;gap:8px;margin-top:10px}
   .theme-choice button{flex:1;min-height:42px}
   .theme-choice button.is-selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(17,122,115,.13);color:var(--primary-dark)}
+  #startupNotice{display:none;margin:10px 14px 0;padding:12px 14px;border:1px solid #e7d19a;border-radius:15px;background:linear-gradient(135deg,#fff8e8,#fffdf7);color:#5d471d;box-shadow:0 8px 20px rgba(141,102,23,.08)}
+  #startupNotice.is-visible{display:flex;align-items:flex-start;gap:10px}
+  #startupNotice .startup-notice-icon{font-size:20px;line-height:1.2;flex:0 0 auto}
+  #startupNotice .startup-notice-body{white-space:pre-wrap;line-height:1.65;font-weight:700;flex:1}
+  #startupNotice .startup-notice-close{border:0;background:transparent;color:inherit;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px;flex:0 0 auto}
+  html[data-theme="dark"] #startupNotice{background:linear-gradient(135deg,#3a3021,#24313a);border-color:#806d43;color:#f4dfaa}
   @media (prefers-color-scheme:dark){html[data-theme="system"]{color-scheme:dark}}
 </style>
   <link rel="stylesheet" href="./desktop-layout-fix.css">
@@ -747,6 +753,11 @@
     <span id="offlineSalesCount" class="last-sync-text offline-sales-count" hidden>مبيعات بانتظار المزامنة: 0</span>
     <span id="lastSyncText" class="last-sync-text">لم تتم المزامنة بعد</span>
   </section>
+  <div id="startupNotice" role="status" aria-live="polite" dir="rtl">
+    <span class="startup-notice-icon" aria-hidden="true">📢</span>
+    <div class="startup-notice-body"></div>
+    <button type="button" class="startup-notice-close" aria-label="إخفاء الإشعار">×</button>
+  </div>
 
   <main>
 
@@ -889,7 +900,7 @@
 // توافق كامل مع قاعدة البيانات القديمة — لا تغيّر أسماء هذه المفاتيح أو مساراتها.
 // كل البيانات تظل داخل storeData/{key} كما هي في Firebase الحالي.
 const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'categories', settings:'settings', users:'users', suppliers:'suppliers', parked:'parked', expenses:'expenses', shifts:'shifts' };
-let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, users: [], suppliers: [], parked: [], expenses: [], shifts: [] };
+let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, users: [], suppliers: [], parked: [], expenses: [], shifts: [] };
 window.MatgarAppState = state;
 // يتحول إلى true فقط بعد اكتمال الترحيل واختبار Cloud Functions والـ Collections الجديدة.
 const COLLECTIONS_BACKEND_ENABLED = false;
@@ -1259,7 +1270,7 @@ async function loadAll(){
       state.sales = next.sales || [];
       state.moves = next.moves || [];
       state.categories = next.categories?.length ? next.categories : ['عام'];
-      state.settings = Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, next.settings || {});
+      state.settings = Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, next.settings || {});
       state.users = next.users || [];
       state.suppliers = next.suppliers || [];
       state.parked = next.parked || [];
@@ -1278,7 +1289,7 @@ async function loadAll(){
     state.sales       = s  ? JSON.parse(s)  : [];
     state.moves       = m  ? JSON.parse(m)  : [];
     state.categories = c  ? JSON.parse(c)  : ['عام'];
-    state.settings   = st ? Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, JSON.parse(st)) : { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 };
+    state.settings   = st ? Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, JSON.parse(st)) : { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' };
     state.users       = u  ? JSON.parse(u)  : [];
     state.suppliers   = sup ? JSON.parse(sup) : [];
     state.parked       = pk ? JSON.parse(pk) : [];
@@ -1369,8 +1380,9 @@ function startRealtimeSync(){
       let parsed;
       try{ parsed = JSON.parse(raw); }catch(e){ return; }
       state[stateKey] = stateKey === 'settings'
-        ? Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, parsed)
+        ? Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, parsed)
         : parsed;
+      if(stateKey === 'settings') renderStartupNotice();
       const modalOpen = document.getElementById('modalBack').classList.contains('open');
       if(!modalOpen){
         scheduleRender();
@@ -3317,6 +3329,7 @@ function showApp(){
   document.getElementById('app').style.display = 'flex';
   applyRolePermissions();
   renderAll();
+  renderStartupNotice();
   updatePageContext(document.querySelector('nav.tabbar button.active')?.getAttribute('data-view') || 'cashier');
   updateShiftBadge();
   startRealtimeSync();
@@ -3652,6 +3665,7 @@ function openSettings(){
       <div class="field"><label>نسبة الضريبة %</label><input id="s_tax" type="number" inputmode="decimal" value="${state.settings.taxRate||0}"></div>
       <div class="field"><label>رمز العملة</label><input id="s_currency" value="${esc(state.settings.currency||'ج.م')}"></div>
     </div>
+    <div class="field"><label>إشعار يظهر عند فتح المنصة</label><textarea id="s_startupNotice" rows="3" maxlength="500" placeholder="اكتب الإعلان أو التنبيه الذي تريد ظهوره بعد تسجيل الدخول...">${esc(state.settings.startupNotice || state.settings.announcement || state.settings.notification || '')}</textarea><div class="muted" style="font-size:11px;margin-top:4px;">يظهر لكل المستخدمين بعد الدخول في كل مرة تُفتح فيها المنصة. اتركه فارغًا لإخفائه.</div></div>
     <div class="field">
       <label>شعار المتجر (يظهر أعلى الإيصال)</label>
       ${safeLogoSrc() ? `<div style="margin-bottom:6px;"><img src="${safeLogoSrc()}" style="max-height:50px;"></div>` : ''}
@@ -3761,10 +3775,12 @@ function openSettings(){
       state.settings.storeName = document.getElementById('s_name').value.trim() || 'متجري';
       state.settings.taxRate = Math.max(0, parseFloat(document.getElementById('s_tax').value) || 0);
       state.settings.currency = document.getElementById('s_currency').value.trim() || 'ج.م';
+      state.settings.startupNotice = document.getElementById('s_startupNotice')?.value.trim().slice(0, 500) || '';
       await save('settings');
       logAudit('تعديل الإعدادات', 'settings', { before, after: { ...state.settings } });
       document.querySelector('#storeNameBtn').textContent = '🏪 ' + state.settings.storeName;
       document.title = state.settings.storeName;
+      renderStartupNotice();
       closeModal();
       renderAll();
     });
@@ -4111,6 +4127,22 @@ function updateBranding(){
   });
   document.title = name;
 }
+function renderStartupNotice(){
+  const box = document.getElementById('startupNotice');
+  if(!box) return;
+  const body = box.querySelector('.startup-notice-body');
+  const notice = String(state.settings?.startupNotice || state.settings?.announcement || state.settings?.notification || state.settings?.notice || '').trim();
+  if(!notice || !currentUser){
+    box.classList.remove('is-visible');
+    if(body) body.textContent = '';
+    return;
+  }
+  if(body) body.textContent = notice;
+  box.classList.add('is-visible');
+}
+document.getElementById('startupNotice')?.querySelector('.startup-notice-close')?.addEventListener('click', () => {
+  document.getElementById('startupNotice')?.classList.remove('is-visible');
+});
 function renderAll(){
   perfStart('renderAll');
   updateBranding();

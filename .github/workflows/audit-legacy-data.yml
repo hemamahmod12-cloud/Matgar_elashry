@@ -8,6 +8,8 @@ on:
         required: true
         type: string
         default: story-market-35565
+  schedule:
+    - cron: '17 */6 * * *'
 
 permissions:
   contents: read
