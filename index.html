@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>متجر العشري</title>
-<meta name="description" content="نظام كاشير و مخازن لمتجر العشري">
-<meta property="og:title" content="متجر العشري">
-<meta property="og:description" content="نظام كاشير ومخازن الأطعمة">
+<title>مطعم وكافيه العشري</title>
+<meta name="description" content="نظام إدارة ومبيعات مطعم وكافيه العشري">
+<meta property="og:title" content="مطعم وكافيه العشري">
+<meta property="og:description" content="نظام الكاشير والمخزون وإدارة المبيعات للمطعم والكافيه">
 <meta property="og:url" content="https://hemamahmod12-cloud.github.io/Matgar_elashry/">
 <meta property="og:image" content="https://hemamahmod12-cloud.github.io/Matgar_elashry/icon-512.png">
 <meta property="og:type" content="website">
@@ -18,7 +18,7 @@
 <link id="appleIcon" rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="متجر العشري">
+<meta name="apple-mobile-web-app-title" content="مطعم وكافيه العشري">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -426,6 +426,7 @@
   .login-hero .mark img{ width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .login-hero .brand{ font-size:21px; font-weight:900; letter-spacing:-.2px; }
   .login-hero .tag{ font-size:12px; opacity:.78; margin-top:3px; }
+  .login-notice{margin:14px auto 0;max-width:360px;padding:10px 14px;border:1px solid rgba(232,199,118,.58);border-radius:14px;background:rgba(255,248,226,.16);color:#fff2c8;font-size:13px;font-weight:800;line-height:1.6;box-shadow:0 8px 22px rgba(0,0,0,.1)}
   .login-card-wrap{ position:relative; z-index:1; width:100%; max-width:360px; padding:0 20px 32px; margin-top:22px; flex:1; }
   .login-card{
     background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg);
@@ -637,7 +638,7 @@
     main{padding-top:28px;padding-right:34px;padding-left:34px}
     .view > .card:first-child::before{inset:18px auto 18px 0}
     nav.tabbar{padding-top:104px;background:linear-gradient(180deg,#0c253d 0%,#102f48 48%,#0c5360 100%);box-shadow:8px 0 28px rgba(8,31,48,.12)}
-    nav.tabbar::after{content:'متجر العشري';position:absolute;top:65px;right:22px;color:rgba(255,255,255,.72);font-weight:900;font-size:13px;letter-spacing:.04em}
+    nav.tabbar::after{content:'مطعم وكافيه العشري';position:absolute;top:65px;right:22px;color:rgba(255,255,255,.72);font-weight:900;font-size:13px;letter-spacing:.04em}
     nav.tabbar button{min-height:48px}
   }
   @media (max-width:759px){
@@ -698,8 +699,9 @@
 <div id="loginScreen" class="login-screen" style="display:none;">
   <div class="login-hero">
     <div class="mark" id="loginMark">🏪</div>
-    <div class="brand" id="loginBrand">متجري</div>
-    <div class="tag">نظام الكاشير والمخازن</div>
+    <div class="brand" id="loginBrand">مطعم وكافيه العشري</div>
+    <div class="tag">نظام إدارة المطعم والكافيه</div>
+    <div class="login-notice" id="loginNotice">اهلا بيك في مطعم وكافيه العشري</div>
   </div>
   <div class="login-card-wrap">
     <div class="login-card">
@@ -736,7 +738,7 @@
     <div class="topbar-brand">
       <div id="topbarLogo" class="topbar-logo topbar-logo-fallback">🏪</div>
       <div>
-        <button class="store-name" id="storeNameBtn">متجري</button>
+        <button class="store-name" id="storeNameBtn">مطعم وكافيه العشري</button>
         <div class="date" id="todayDate"></div>
       </div>
     </div>
@@ -900,7 +902,7 @@
 // توافق كامل مع قاعدة البيانات القديمة — لا تغيّر أسماء هذه المفاتيح أو مساراتها.
 // كل البيانات تظل داخل storeData/{key} كما هي في Firebase الحالي.
 const KEYS = { products:'products', sales:'sales', moves:'moves', categories:'categories', settings:'settings', users:'users', suppliers:'suppliers', parked:'parked', expenses:'expenses', shifts:'shifts' };
-let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, users: [], suppliers: [], parked: [], expenses: [], shifts: [] };
+let state = { products: [], sales: [], moves: [], categories: [], settings: { storeName: 'مطعم وكافيه العشري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, users: [], suppliers: [], parked: [], expenses: [], shifts: [] };
 window.MatgarAppState = state;
 // يتحول إلى true فقط بعد اكتمال الترحيل واختبار Cloud Functions والـ Collections الجديدة.
 const COLLECTIONS_BACKEND_ENABLED = false;
@@ -1270,7 +1272,7 @@ async function loadAll(){
       state.sales = next.sales || [];
       state.moves = next.moves || [];
       state.categories = next.categories?.length ? next.categories : ['عام'];
-      state.settings = Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, next.settings || {});
+      state.settings = Object.assign({ storeName:'مطعم وكافيه العشري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, next.settings || {});
       state.users = next.users || [];
       state.suppliers = next.suppliers || [];
       state.parked = next.parked || [];
@@ -1289,7 +1291,7 @@ async function loadAll(){
     state.sales       = s  ? JSON.parse(s)  : [];
     state.moves       = m  ? JSON.parse(m)  : [];
     state.categories = c  ? JSON.parse(c)  : ['عام'];
-    state.settings   = st ? Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, JSON.parse(st)) : { storeName: 'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' };
+    state.settings   = st ? Object.assign({ storeName:'مطعم وكافيه العشري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, JSON.parse(st)) : { storeName: 'مطعم وكافيه العشري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' };
     state.users       = u  ? JSON.parse(u)  : [];
     state.suppliers   = sup ? JSON.parse(sup) : [];
     state.parked       = pk ? JSON.parse(pk) : [];
@@ -1380,7 +1382,7 @@ function startRealtimeSync(){
       let parsed;
       try{ parsed = JSON.parse(raw); }catch(e){ return; }
       state[stateKey] = stateKey === 'settings'
-        ? Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, parsed)
+        ? Object.assign({ storeName:'مطعم وكافيه العشري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, parsed)
         : parsed;
       if(stateKey === 'settings') renderStartupNotice();
       const modalOpen = document.getElementById('modalBack').classList.contains('open');
@@ -2504,7 +2506,7 @@ function printSale(sale){
   const popup = window.open('', '_blank', 'width=420,height=720');
   if(!popup){ toast('اسمح بالنوافذ المنبثقة لإعادة طباعة الفاتورة'); return; }
   popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>فاتورة #${sale.invoiceNo}</title>
-    <style>@page{size:80mm auto;margin:5mm}*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;color:#111;margin:0;font-size:12px}.receipt{width:100%;max-width:360px;margin:auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.print-logo{display:block;max-width:180px;max-height:70px;object-fit:contain;margin:0 auto 7px}.store{font-size:18px;font-weight:700}.meta{color:#555;font-size:11px;margin-top:4px}table{width:100%;border-collapse:collapse;margin:8px 0}th,td{padding:5px 2px;border-bottom:1px solid #ddd;text-align:right}th{font-size:11px;color:#555}td:nth-child(n+2),th:nth-child(n+2){text-align:left}.total{border-top:1px dashed #777;margin-top:8px;padding-top:8px;font-weight:700;font-size:15px}.line{display:flex;justify-content:space-between;padding:3px 0}.foot{text-align:center;border-top:1px dashed #999;margin-top:12px;padding-top:9px;font-size:11px;color:#555}</style></head><body><div class="receipt"><div class="head">${logo}<div class="store">${esc(state.settings.storeName||'متجري')}</div><div class="meta">فاتورة رقم #${esc(sale.invoiceNo)} · ${fmtDateShort(sale.date)}</div><div class="meta">الكاشير: ${esc(sale.cashierName||'—')}</div></div><table><thead><tr><th>الصنف</th><th>ك</th><th>سعر</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table><div class="line"><span>الإجمالي الفرعي</span><span>${money(sale.subtotal ?? sale.total)}</span></div>${sale.discount ? `<div class="line"><span>الخصم</span><span>-${money(sale.discount)}</span></div>` : ''}${sale.tax ? `<div class="line"><span>الضريبة</span><span>${money(sale.tax)}</span></div>` : ''}<div class="line total"><span>الإجمالي</span><span>${money(sale.total)}</span></div><div class="line"><span>طريقة الدفع</span><span>${esc(sale.paymentMethod||'نقدي')}</span></div><div class="line"><span>المستلم</span><span>${money(sale.received)}</span></div><div class="line"><span>الباقي</span><span>${money(sale.change)}</span></div><div class="foot">شكرًا لزيارتكم</div></div><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
+    <style>@page{size:80mm auto;margin:5mm}*{box-sizing:border-box}body{font-family:Arial,Tahoma,sans-serif;color:#111;margin:0;font-size:12px}.receipt{width:100%;max-width:360px;margin:auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.print-logo{display:block;max-width:180px;max-height:70px;object-fit:contain;margin:0 auto 7px}.store{font-size:18px;font-weight:700}.meta{color:#555;font-size:11px;margin-top:4px}table{width:100%;border-collapse:collapse;margin:8px 0}th,td{padding:5px 2px;border-bottom:1px solid #ddd;text-align:right}th{font-size:11px;color:#555}td:nth-child(n+2),th:nth-child(n+2){text-align:left}.total{border-top:1px dashed #777;margin-top:8px;padding-top:8px;font-weight:700;font-size:15px}.line{display:flex;justify-content:space-between;padding:3px 0}.foot{text-align:center;border-top:1px dashed #999;margin-top:12px;padding-top:9px;font-size:11px;color:#555}</style></head><body><div class="receipt"><div class="head">${logo}<div class="store">${esc(state.settings.storeName||'مطعم وكافيه العشري')}</div><div class="meta">فاتورة رقم #${esc(sale.invoiceNo)} · ${fmtDateShort(sale.date)}</div><div class="meta">الكاشير: ${esc(sale.cashierName||'—')}</div></div><table><thead><tr><th>الصنف</th><th>ك</th><th>سعر</th><th>الإجمالي</th></tr></thead><tbody>${rows}</tbody></table><div class="line"><span>الإجمالي الفرعي</span><span>${money(sale.subtotal ?? sale.total)}</span></div>${sale.discount ? `<div class="line"><span>الخصم</span><span>-${money(sale.discount)}</span></div>` : ''}${sale.tax ? `<div class="line"><span>الضريبة</span><span>${money(sale.tax)}</span></div>` : ''}<div class="line total"><span>الإجمالي</span><span>${money(sale.total)}</span></div><div class="line"><span>طريقة الدفع</span><span>${esc(sale.paymentMethod||'نقدي')}</span></div><div class="line"><span>المستلم</span><span>${money(sale.received)}</span></div><div class="line"><span>الباقي</span><span>${money(sale.change)}</span></div><div class="foot">شكرًا لزيارتكم</div></div><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
 </body></html>`);
   popup.document.close();
 }
@@ -3257,7 +3259,7 @@ function updatePageContext(view){
   const subtitle = document.getElementById('pageSubtitle');
   if(title) title.textContent = context[0];
   if(subtitle) subtitle.textContent = context[1];
-  document.title = `${context[0]} · ${state.settings.storeName || 'متجري'}`;
+  document.title = `${context[0]} · ${state.settings.storeName || 'مطعم وكافيه العشري'}`;
 }
 document.querySelector('nav.tabbar').addEventListener('click', e => {
   const btn = e.target.closest('button[data-view]');
@@ -3296,7 +3298,7 @@ function renderLoginScreen(){
   document.getElementById('loginSubtitle').style.display = 'block';
   document.getElementById('loginSubtitle').textContent = setupMode ? 'أنشئ حساب المدير الأول' : 'ادخل بيانات حسابك للمتابعة';
   document.getElementById('loginSubmitBtn').textContent = setupMode ? 'إنشاء الحساب والدخول' : 'دخول';
-  document.getElementById('loginBrand').textContent = state.settings.storeName || 'متجري';
+  document.getElementById('loginBrand').textContent = state.settings.storeName || 'مطعم وكافيه العشري';
   document.getElementById('loginMark').innerHTML = safeLogoSrc()
     ? `<img src="${safeLogoSrc()}" alt="">`
     : '🏪';
@@ -3556,7 +3558,7 @@ function printShift(shift, sales){
   const popup = window.open('', '_blank', 'width=420,height=720');
   if(!popup){ toast('اسمح بالنوافذ المنبثقة لطباعة ملخص الوردية'); return; }
   const total = sales.reduce((n,s)=>n+Number(s.total||0),0), cash = sales.filter(s=>s.paymentMethod==='نقدي').reduce((n,s)=>n+Number(s.total||0),0);
-  popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>ملخص الوردية #${shift.shiftNo}</title><style>body{font-family:Arial;margin:18px;color:#111}.line{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:8px 0}h2{text-align:center}</style><h2>${esc(state.settings.storeName||'متجري')}</h2><h3>ملخص الوردية #${shift.shiftNo}</h3><div class="line"><span>الكاشير</span><b>${esc(shift.openedByName)}</b></div><div class="line"><span>عدد الفواتير</span><b>${sales.length}</b></div><div class="line"><span>إجمالي المبيعات</span><b>${money(total)}</b></div><div class="line"><span>النقد المتوقع</span><b>${money(Number(shift.openingCash||0)+cash)}</b></div><div class="line"><span>النقد الفعلي</span><b>${money(shift.closingCash)}</b></div><div class="line"><span>الفارق</span><b>${money(shift.cashDifference)}</b></div><script>onload=()=>{print();onafterprint=()=>close()}<\/script>`); popup.document.close();
+  popup.document.write(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>ملخص الوردية #${shift.shiftNo}</title><style>body{font-family:Arial;margin:18px;color:#111}.line{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:8px 0}h2{text-align:center}</style><h2>${esc(state.settings.storeName||'مطعم وكافيه العشري')}</h2><h3>ملخص الوردية #${shift.shiftNo}</h3><div class="line"><span>الكاشير</span><b>${esc(shift.openedByName)}</b></div><div class="line"><span>عدد الفواتير</span><b>${sales.length}</b></div><div class="line"><span>إجمالي المبيعات</span><b>${money(total)}</b></div><div class="line"><span>النقد المتوقع</span><b>${money(Number(shift.openingCash||0)+cash)}</b></div><div class="line"><span>النقد الفعلي</span><b>${money(shift.closingCash)}</b></div><div class="line"><span>الفارق</span><b>${money(shift.cashDifference)}</b></div><script>onload=()=>{print();onafterprint=()=>close()}<\/script>`); popup.document.close();
 }
 document.getElementById('shiftBadge').addEventListener('click', openShiftManager);
 
@@ -3772,7 +3774,7 @@ function openSettings(){
     });
     document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
       const before = { ...state.settings };
-      state.settings.storeName = document.getElementById('s_name').value.trim() || 'متجري';
+      state.settings.storeName = document.getElementById('s_name').value.trim() || 'مطعم وكافيه العشري';
       state.settings.taxRate = Math.max(0, parseFloat(document.getElementById('s_tax').value) || 0);
       state.settings.currency = document.getElementById('s_currency').value.trim() || 'ج.م';
       state.settings.startupNotice = document.getElementById('s_startupNotice')?.value.trim().slice(0, 500) || '';
@@ -4074,7 +4076,7 @@ function importBackup(e){
       state.sales = data.sales || [];
       state.moves = data.moves || [];
       state.categories = Array.isArray(data.categories) && data.categories.length ? data.categories : ['عام'];
-      state.settings = Object.assign({ storeName:'متجري', taxRate:0, currency:'ج.م', invoiceCounter:1000 }, data.settings || {});
+      state.settings = Object.assign({ storeName:'مطعم وكافيه العشري', taxRate:0, currency:'ج.م', invoiceCounter:1000, startupNotice:'' }, data.settings || {});
       state.suppliers = Array.isArray(data.suppliers) ? data.suppliers : [];
       state.parked = Array.isArray(data.parked) ? data.parked : [];
       state.expenses = Array.isArray(data.expenses) ? data.expenses : [];
@@ -4095,7 +4097,7 @@ function importBackup(e){
 
 /* ================= INIT ================= */
 function updateBranding(){
-  const name = state.settings.storeName || 'متجري';
+  const name = state.settings.storeName || 'مطعم وكافيه العشري';
   const logoDataUrl = safeLogoSrc();
   const nameBtn = document.getElementById('storeNameBtn');
   if(nameBtn) nameBtn.textContent = name;
