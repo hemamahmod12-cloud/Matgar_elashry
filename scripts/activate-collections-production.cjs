@@ -11,9 +11,28 @@ const admin = require('firebase-admin');
 const projectId = process.env.FIREBASE_PROJECT_ID || 'story-market-35565';
 const storeId = process.env.FIREBASE_STORE_ID || 'main';
 const indexPath = path.resolve('index.html');
+const validationReportPath = path.resolve(process.env.COLLECTIONS_VALIDATION_REPORT || 'migration-artifacts/collections-count-comparison.json');
 
 if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
   throw new Error('GOOGLE_APPLICATION_CREDENTIALS غير مضبوط؛ لم يتم التفعيل');
+}
+if (process.env.ALLOW_PRODUCTION_ACTIVATION !== 'true') {
+  throw new Error('التفعيل الإنتاجي محمي؛ اضبط ALLOW_PRODUCTION_ACTIVATION=true بعد مراجعة التقرير يدويًا');
+}
+if (!fs.existsSync(validationReportPath)) {
+  throw new Error(`تقرير التحقق غير موجود: ${validationReportPath}`);
+}
+let validationReport;
+try {
+  validationReport = JSON.parse(fs.readFileSync(validationReportPath, 'utf8'));
+} catch (error) {
+  throw new Error(`تقرير التحقق غير صالح: ${error.message}`);
+}
+if (validationReport.status !== 'PASS' || validationReport.comparison?.allCountsMatch !== true) {
+  throw new Error('تقرير التحقق ليس PASS أو الأعداد غير متطابقة؛ بقي COLLECTIONS_BACKEND_ENABLED=false');
+}
+if (validationReport.storeId !== storeId) {
+  throw new Error(`تقرير التحقق لمتجر ${validationReport.storeId || 'غير معروف'} وليس ${storeId}`);
 }
 
 if (!admin.apps.length) {

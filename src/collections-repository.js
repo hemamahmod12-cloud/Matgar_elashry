@@ -2,7 +2,10 @@
 (function (global) {
   'use strict';
 
-  const STORE_ID = 'main';
+  const queryStore = global.location && typeof global.location.search === 'string'
+    ? new URLSearchParams(global.location.search).get('store')
+    : '';
+  const STORE_ID = String(global.__MATGAR_STORE_ID__ || queryStore || 'main').trim() || 'main';
   const TIMEOUT_MS = 30000;
 
   function db() {

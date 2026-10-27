@@ -1,0 +1,75 @@
+name: Validate Collections Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'Firebase project ID'
+        required: true
+        type: string
+        default: story-market-35565
+      store_id:
+        description: 'Staging store ID; never use main for write tests'
+        required: true
+        type: string
+        default: staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collections-staging-validation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install read-only validation dependency
+        run: npm install --no-save --no-package-lock firebase-admin@^12.7.0
+
+      - name: Write temporary service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
+          node -e "const fs=require('fs'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/firebase-service-account.json')); console.log('service account JSON: valid')"
+
+      - name: Run static safety checks
+        run: |
+          node --check scripts/activate-collections-production.cjs
+          node --check src/collections-repository.js
+          node tests/priority-validation.test.js
+          test "$(grep -c 'const COLLECTIONS_BACKEND_ENABLED = false;' index.html)" -eq 1
+
+      - name: Compare staging counts read-only
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+          FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
+          FIREBASE_STORE_ID: ${{ inputs.store_id }}
+          COMPARISON_ARTIFACT_DIR: staging-validation-artifacts
+        run: node scripts/compare-store-data.cjs
+
+      - name: Upload staging validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collections-staging-validation-${{ github.run_id }}
+          path: staging-validation-artifacts/collections-count-comparison.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
