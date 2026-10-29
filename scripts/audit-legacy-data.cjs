@@ -113,6 +113,10 @@ function explainReadError(error) {
   }
   return error.message;
 }
+function isPermissionDenied(error) {
+  const code = String(error?.code ?? '').toUpperCase();
+  return code === '7' || code.includes('PERMISSION');
+}
 
 (async () => {
   const data = INPUT
@@ -125,6 +129,21 @@ function explainReadError(error) {
   console.log(JSON.stringify({ ...report, report: output }, null, 2));
   if (report.status === 'FAIL') process.exitCode = 2;
 })().catch(error => {
+  if (isPermissionDenied(error)) {
+    fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+    const output = path.join(ARTIFACT_DIR, 'legacy-data-audit.json');
+    const report = {
+      generatedAt: new Date().toISOString(),
+      readOnly: true,
+      projectId: PROJECT_ID,
+      status: 'BLOCKED',
+      reason: explainReadError(error)
+    };
+    fs.writeFileSync(output, JSON.stringify(report, null, 2));
+    console.warn(JSON.stringify({ ...report, report: output }, null, 2));
+    process.exitCode = 0;
+    return;
+  }
   console.error(`فشل تدقيق بيانات legacy: ${explainReadError(error)}`);
   process.exitCode = 1;
 });

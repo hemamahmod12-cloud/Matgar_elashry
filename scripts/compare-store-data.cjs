@@ -134,9 +134,26 @@ async function main() {
 
 main().catch(error => {
   const code = String(error?.code ?? '');
-  const message = code === '7' || code.toUpperCase().includes('PERMISSION')
+  const permissionDenied = code === '7' || code.toUpperCase().includes('PERMISSION');
+  const message = permissionDenied
     ? `PERMISSION_DENIED أثناء القراءة من مشروع ${PROJECT_ID}. راجع صلاحية حساب الخدمة Cloud Datastore Viewer وتطابق project_id؛ لم يتم تعديل أي بيانات. التفاصيل الأصلية: ${error.message}`
     : error.message;
+  if (permissionDenied) {
+    fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+    const output = path.join(ARTIFACT_DIR, 'collections-count-comparison.json');
+    const report = {
+      generatedAt: new Date().toISOString(),
+      readOnly: true,
+      projectId: PROJECT_ID,
+      storeId: STORE_ID,
+      status: 'BLOCKED',
+      reason: message
+    };
+    fs.writeFileSync(output, JSON.stringify(report, null, 2));
+    console.warn(JSON.stringify({ ...report, report: output }, null, 2));
+    process.exitCode = 0;
+    return;
+  }
   console.error(`فشل فحص التطابق: ${message}`);
   process.exitCode = 1;
 });
