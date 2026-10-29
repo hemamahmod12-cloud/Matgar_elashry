@@ -106,6 +106,14 @@ function audit(data) {
   };
 }
 
+function explainReadError(error) {
+  const code = String(error?.code ?? '');
+  if (code === '7' || code.toUpperCase().includes('PERMISSION')) {
+    return `PERMISSION_DENIED أثناء القراءة من مشروع ${PROJECT_ID}. يحتاج حساب الخدمة إلى صلاحية Firestore قراءة مثل Cloud Datastore Viewer، أو أن project_id داخل المفتاح لا يطابق المشروع؛ لم يتم تعديل أي بيانات. التفاصيل الأصلية: ${error.message}`;
+  }
+  return error.message;
+}
+
 (async () => {
   const data = INPUT
     ? decodeLegacySnapshot(JSON.parse(fs.readFileSync(path.resolve(INPUT), 'utf8')))
@@ -117,6 +125,6 @@ function audit(data) {
   console.log(JSON.stringify({ ...report, report: output }, null, 2));
   if (report.status === 'FAIL') process.exitCode = 2;
 })().catch(error => {
-  console.error(`فشل تدقيق بيانات legacy: ${error.message}`);
+  console.error(`فشل تدقيق بيانات legacy: ${explainReadError(error)}`);
   process.exitCode = 1;
 });

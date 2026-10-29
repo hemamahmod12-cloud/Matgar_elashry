@@ -133,6 +133,10 @@ async function main() {
 }
 
 main().catch(error => {
-  console.error(`فشل فحص التطابق: ${error.message}`);
+  const code = String(error?.code ?? '');
+  const message = code === '7' || code.toUpperCase().includes('PERMISSION')
+    ? `PERMISSION_DENIED أثناء القراءة من مشروع ${PROJECT_ID}. راجع صلاحية حساب الخدمة Cloud Datastore Viewer وتطابق project_id؛ لم يتم تعديل أي بيانات. التفاصيل الأصلية: ${error.message}`
+    : error.message;
+  console.error(`فشل فحص التطابق: ${message}`);
   process.exitCode = 1;
 });

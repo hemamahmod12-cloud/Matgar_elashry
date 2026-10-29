@@ -49,7 +49,7 @@ jobs:
       - name: Audit StoreData read-only
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
-          FIREBASE_PROJECT_ID: ${{ inputs.project_id }}
+          FIREBASE_PROJECT_ID: ${{ inputs.project_id || 'story-market-35565' }}
         run: node scripts/audit-legacy-data.cjs
 
       - name: Upload audit report
