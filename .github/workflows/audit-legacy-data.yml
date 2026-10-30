@@ -43,6 +43,25 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-service-account.json"
           node -e "const fs=require('fs'); JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/firebase-service-account.json')); console.log('service account JSON: valid')"
 
+      - name: Verify credential identity safely
+        env:
+          EXPECTED_PROJECT_ID: ${{ inputs.project_id || 'story-market-35565' }}
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const key = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/firebase-service-account.json'));
+          const email = String(key.client_email || '');
+          const fingerprint = crypto.createHash('sha256').update(email).digest('hex').slice(0, 16);
+          console.log(JSON.stringify({
+            expectedProjectId: process.env.EXPECTED_PROJECT_ID,
+            credentialProjectId: key.project_id || '(missing)',
+            serviceAccountFingerprint: fingerprint,
+            credentialType: key.type || '(missing)'
+          }));
+          if (!email || key.type !== 'service_account') process.exit(1);
+          NODE
+
       - name: Validate audit source
         run: node --check scripts/audit-legacy-data.cjs
 
